@@ -4,11 +4,10 @@
   "description": "",
   "author": "",
   "license": "ISC",
-  "type": "module",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "electron . --debug",
+    "dev": "nodemon --exec electron . --inspect",
     "build": "electron-builder",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -16,7 +15,6 @@
   "dependencies": {
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "electron-reload": "^2.0.0-alpha.1",
     "express": "^5.1.0",
     "express-session": "^1.18.1",
     "ffmpeg-static": "^5.2.0",
@@ -24,6 +22,7 @@
     "fluent-ffmpeg": "^2.1.3",
     "module-alias": "^2.2.3",
     "moran": "^0.0.11",
+    "morgan": "^1.10.0",
     "multer": "^2.0.0",
     "nedb-promises": "^6.2.3",
     "socket.io": "^4.8.1",
@@ -37,8 +36,13 @@
     "prettier": "^3.5.3"
   },
   "_moduleAliases": {
-    "@src": "src",
-    "@public": "public"
+    "@src": "./src",
+    "@public": "./public",
+    "@api": "./src/api",
+    "@db": "./src/db",
+    "@logger": "./src/logger",
+    "@py": "./src/py",
+    "@web": "./src/web"
   },
   "build": {
     "appId": "com.example.vpapp",
