@@ -1,7 +1,8 @@
 const express = require('express')
 const multer = require('multer')
-const { dbFiles } = require('@db')
-
+const db = require('@db')
+const { getTmpPath } = require('@api/files/folders')
+const logger = require('@logger')
 const { postProcessFiles } = require('@api/files')
 
 const router = express.Router()
@@ -9,6 +10,8 @@ const router = express.Router()
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
+      const tmpPath = getTmpPath()
+      console.log('tmpPath:', tmpPath)
       cb(null, tmpPath)
     },
     filename: (req, file, cb) => {
@@ -18,12 +21,12 @@ const upload = multer({
 })
 
 // 파일 목록 조회
-router.get('/files', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const files = await dbFiles.find({})
+    const files = await db.files.find({})
     res.json(files)
   } catch (error) {
-    console.error('Error fetching files:', error)
+    logger.error(`Error fetching files: ${error}`)
     res.status(500).json({ error: 'Internal Server Error' })
   }
 })
@@ -41,7 +44,7 @@ router.post('/', upload.any(), async (req, res) => {
       .status(200)
       .json({ message: 'Files processed successfully', files })
   } catch (error) {
-    console.error('Error processing files:', error)
+    logger.error(`Error processing files: ${error}`)
     return res.status(500).json({ error: 'Internal Server Error' })
   }
 })

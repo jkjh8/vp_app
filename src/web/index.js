@@ -12,16 +12,11 @@ const publicFolder = path.join(__dirname, '../../public')
 appServer.use(express.json())
 appServer.use(express.urlencoded({ extended: true }))
 appServer.use(cookieParser())
+appServer.use(cors())
+appServer.use(httpLogger('dev'))
 
 if (process.env.NODE_ENV === 'development') {
   appServer.use(httpLogger('dev'))
-  appServer.use(
-    cors({
-      origin: (origin, callback) => {
-        callback(null, origin)
-      }
-    })
-  )
 }
 
 appServer.use(express.static(path.join(publicFolder, 'spa')))
