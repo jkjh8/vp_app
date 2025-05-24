@@ -7,7 +7,6 @@ const generateThumbnail = (filePath, outputPath, time = 5) => {
   const thumbnailName = `thumbnail-${baseName}.png`
   const thumbnailPath = path.join(outputPath, thumbnailName)
 
-  // 비동기 처리 시작 (백그라운드)
   setImmediate(() => {
     ffmpeg(filePath)
       .on('end', () => {})
@@ -16,7 +15,7 @@ const generateThumbnail = (filePath, outputPath, time = 5) => {
         timestamps: [time],
         filename: thumbnailName,
         folder: outputPath,
-        size: '320x240'
+        size: '320x?'
       })
   })
 
@@ -36,9 +35,7 @@ const resizeImage = (inputPath, outputPath) => {
       .on('end', () => {})
       .on('error', () => {})
       .output(thumbnailPath)
-      .size('320x240')
-      .keepDAR()
-      .autopad()
+      .size('320x?')
       .run()
   })
 
