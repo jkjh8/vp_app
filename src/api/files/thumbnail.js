@@ -1,17 +1,17 @@
 const ffmpeg = require('fluent-ffmpeg')
 const path = require('path')
 
+// 썸네일 파일 이름을 먼저 반환하고, 실제 처리는 비동기로 진행
 const generateThumbnail = (filePath, outputPath, time = 5) => {
-  return new Promise((resolve, reject) => {
-    const baseName = path.parse(filePath).name
-    const thumbnailName = `thumbnail-${baseName}.png`
+  const baseName = path.parse(filePath).name
+  const thumbnailName = `thumbnail-${baseName}.png`
+  const thumbnailPath = path.join(outputPath, thumbnailName)
+
+  // 비동기 처리 시작 (백그라운드)
+  setImmediate(() => {
     ffmpeg(filePath)
-      .on('end', () => {
-        resolve(path.join(outputPath, thumbnailName))
-      })
-      .on('error', (err) => {
-        reject(err)
-      })
+      .on('end', () => {})
+      .on('error', () => {})
       .screenshots({
         timestamps: [time],
         filename: thumbnailName,
@@ -19,20 +19,30 @@ const generateThumbnail = (filePath, outputPath, time = 5) => {
         size: '320x240'
       })
   })
+
+  // 파일 이름(경로) 즉시 반환
+  return thumbnailPath
 }
+
 // 이미지 파일을 비율은 유지하면서 320x240 보다 작은 이미지 만들기
+// 파일 이름을 먼저 반환하고, 실제 처리는 비동기로 진행
 const resizeImage = (inputPath, outputPath) => {
-  return new Promise((resolve, reject) => {
+  const baseName = path.parse(inputPath).name
+  const thumbnailName = `thumbnail-${baseName}.png`
+  const thumbnailPath = path.join(outputPath, thumbnailName)
+
+  setImmediate(() => {
     ffmpeg(inputPath)
-      .on('end', () => {
-        resolve(outputPath)
-      })
-      .on('error', (err) => {
-        reject(err)
-      })
-      .size(`min(320, 320)x240`)
-      .save(outputPath)
+      .on('end', () => {})
+      .on('error', () => {})
+      .output(thumbnailPath)
+      .size('320x240')
+      .keepDAR()
+      .autopad()
+      .run()
   })
+
+  return thumbnailPath
 }
 
 module.exports = {
