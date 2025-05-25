@@ -2,7 +2,7 @@ const { app } = require('electron')
 const path = require('path')
 const Datastore = require('nedb-promises')
 
-const dbPath = path.join(__dirname, 'db')
+const dbPath = path.join(__dirname, 'db_data')
 
 const db = {
   status: Datastore.create({

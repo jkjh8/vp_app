@@ -2,7 +2,7 @@
 .thumbs.db
 node_modules
 *.db
-./src/db/db
+src/db/db
 
 # Log files
 npm-debug.log*
