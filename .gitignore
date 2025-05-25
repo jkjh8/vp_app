@@ -2,6 +2,8 @@
 .thumbs.db
 node_modules
 *.db
+./src/db/db
+
 # Log files
 npm-debug.log*
 yarn-debug.log*
