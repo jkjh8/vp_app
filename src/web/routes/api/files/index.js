@@ -4,7 +4,7 @@ const db = require('@db')
 const { getTmpPath } = require('@api/files/folders')
 const logger = require('@logger')
 const { postProcessFiles } = require('@api/files')
-
+const path = require('path')
 const router = express.Router()
 
 const upload = multer({
@@ -46,6 +46,22 @@ router.post('/', upload.any(), async (req, res) => {
   } catch (error) {
     logger.error(`Error processing files: ${error}`)
     return res.status(500).json({ error: 'Internal Server Error' })
+  }
+})
+
+// 섬네일 파일을 요청하면 보내주기
+router.get('/thumbnail/:uuid', async (req, res) => {
+  const { uuid } = req.params
+  try {
+    const file = await db.files.findOne({ uuid })
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' })
+    }
+    const thumbnailPath = file.thumbnail // Assuming thumbnailPath is stored in the database
+    res.sendFile(thumbnailPath)
+  } catch (error) {
+    logger.error(`Error fetching thumbnail: ${error}`)
+    res.status(500).json({ error: 'Internal Server Error' })
   }
 })
 
