@@ -100,6 +100,7 @@ const postProcessFiles = async (files) => {
             fieldname,
             filename,
             originalname,
+            amx: convertforAMX(originalname),
             mimetype,
             size,
             path: newFilePath,
@@ -135,9 +136,21 @@ const insertFileWithUniqueNumber = async (fileData) => {
   throw new Error('Failed to insert file with unique number after retries')
 }
 
+// utf-8을 amx tp에서 사용하는 스트링으로 변환하는 함수
+const convertforAMX = (str) => {
+  const encoder = new TextEncoder('utf-16le')
+  const encoded = encoder.encode(str)
+  const hexArray = Array.from(encoded)
+    .map((byte) => byte.toString(16).padStart(4, '0'))
+    .join(',')
+
+  return hexArray
+}
+
 module.exports = {
   setupFFmpeg,
   getMetadata,
   postProcessFiles,
-  insertFileWithUniqueNumber
+  insertFileWithUniqueNumber,
+  convertforAMX
 }
