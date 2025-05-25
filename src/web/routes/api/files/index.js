@@ -1,10 +1,11 @@
 const express = require('express')
 const multer = require('multer')
-const db = require('@db')
-const { getTmpPath } = require('@api/files/folders')
 const logger = require('@logger')
 const { postProcessFiles } = require('@api/files')
 const path = require('path')
+const fs = require('fs')
+const db = require('@db')
+const { getTmpPath, getMediaPath } = require('@api/files/folders')
 const router = express.Router()
 
 const upload = multer({
@@ -61,6 +62,27 @@ router.get('/thumbnail/:uuid', async (req, res) => {
     res.sendFile(thumbnailPath)
   } catch (error) {
     logger.error(`Error fetching thumbnail: ${error}`)
+    res.status(500).json({ error: 'Internal Server Error' })
+  }
+})
+
+// 파일 삭제
+router.delete('/:uuid', async (req, res) => {
+  const { uuid } = req.params
+  try {
+    const file = await db.files.findOne({ uuid })
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' })
+    }
+    // Delete the uuid folder from the filesystem
+    const fileDir = path.join(getMediaPath(), uuid)
+    fs.rmdirSync(fileDir, { recursive: true, force: true }) // This will delete the directory and its contents
+    // Delete the file record from the database
+    await db.files.remove({ uuid })
+
+    res.status(200).json({ message: 'File deleted successfully' })
+  } catch (error) {
+    logger.error(`Error deleting file: ${error}`)
     res.status(500).json({ error: 'Internal Server Error' })
   }
 })
