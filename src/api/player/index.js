@@ -1,4 +1,3 @@
-const socket = require('@web/io')
 const { sendMessageToPython } = require('@py/index.js')
 const db = require('@db')
 const logger = require('@logger')
@@ -15,6 +14,8 @@ const playid = async (id) => {
   if (!file) {
     throw new Error('Player not found')
   }
+  const { io } = require('@web/io')
+  io.emit('current', file)
 
   sendMessageToPython(`play:${file.path}`)
 
