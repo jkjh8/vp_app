@@ -11,13 +11,14 @@ const path = require('path')
 const { startPythonProcess } = require('@py')
 const { stopPythonProcess } = require('@py')
 const logger = require('@logger')
-const db = require('@db')
+require('@db')
 const { initIOServer } = require('@web/io')
 const {
   existsMediaPath,
   existsTmpPath,
   deleteTmpFiles
 } = require('@api/files/folders')
+const { start } = require('repl')
 
 // ES5에서는 __dirname, __filename 바로 사용 가능
 
@@ -57,11 +58,11 @@ app.whenReady().then(function () {
   deleteTmpFiles() // 임시 디렉토리 내 모든 파일 삭제
   existsMediaPath() // 미디어 디렉토리 확인 및 생성
   //데이터 베이스 초기화
-  console.log(db) // Python 프로세스 시작
-  startPythonProcess()
   // http 서버 시작
-  initIOServer(3000)
-  createWindow()
+  const io = initIOServer(3000)
+  // startPythonProcess()
+  startPythonProcess(io) // Python 프로세스 시작
+  // createWindow()
 
   // macOS에서는 앱이 활성화될 때 창이 없으면 새로 생성
   app.on('activate', function () {

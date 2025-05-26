@@ -522,16 +522,16 @@ class Player(QMainWindow):
         event.accept()
         
     def print_json(self, type, data):
-        # Print player data as JSON with type included in the output
+        # Print player data as object string (single line, UTF-8) for Node.js to easily parse
         try:
             output = {
                 "type": type,
                 "data": data
             }
-            json_data = json.dumps(output, indent=4)
-            print(json_data, flush=True)
+            print(json.dumps(output, ensure_ascii=False), flush=True)
         except Exception as e:
-            self.print_json("error", {"message": f"Error printing JSON: {e}"})
+            # Avoid recursion if print_json fails
+            print(json.dumps({"type": "error", "data": {"message": f"Error printing JSON: {e}"}}), flush=True)
 
 
 if __name__ == "__main__":
