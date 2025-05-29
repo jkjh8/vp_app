@@ -73,6 +73,19 @@ const postProcessFiles = async (files) => {
         originalname
       } = file
 
+      // 한글 파일명 디코딩 처리 (이미 디코딩된 경우 예외처리)
+      function safeDecode(str) {
+        try {
+          // 이미 디코딩된 문자열이면 decodeURIComponent에서 오류 발생하므로 그대로 반환
+          return decodeURIComponent(str)
+        } catch {
+          return str
+        }
+      }
+      const decodedOriginalname = safeDecode(originalname)
+      const decodedFilename = safeDecode(filename)
+      const decodedFieldname = safeDecode(fieldname)
+
       // number와 uuid 미리 예약
       const { uuid, number } = await reserveFileNumber()
 
@@ -81,7 +94,12 @@ const postProcessFiles = async (files) => {
       // mediaPath아래 uuid 폴더 만들기
       const uuidFolderPath = path.join(mediaPath, uuid)
       await fs.promises.mkdir(uuidFolderPath, { recursive: true })
-      const newFilePath = path.join(uuidFolderPath, file.originalname)
+
+      // Windows에서 한글 경로 문제 방지: Buffer.from(str, 'utf8').toString() 사용
+      // 단, Node.js는 기본적으로 UTF-8을 지원하므로, 문제가 계속된다면 파일시스템/환경 문제일 수 있음
+      const safeFileName = Buffer.from(decodedFieldname, 'utf8').toString()
+      const newFilePath = path.join(uuidFolderPath, safeFileName)
+
       // Move the file to the new location
       await fs.promises.rename(filePath, newFilePath)
 
@@ -97,15 +115,16 @@ const postProcessFiles = async (files) => {
         {
           $set: {
             reserved: false,
-            fieldname,
-            filename,
-            originalname,
-            amx: convertforAMX(originalname),
+            fieldname: decodedFieldname,
+            filename: decodedFilename,
+            originalname: decodedOriginalname,
+            amx: convertforAMX(decodedOriginalname),
             mimetype,
             size,
             path: newFilePath,
             metadata,
             thumbnail: thumbnailPath,
+            is_image: mimetype.startsWith('image/'),
             updatedAt: new Date()
           }
         }

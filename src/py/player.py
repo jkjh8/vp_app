@@ -23,9 +23,8 @@ player_data = {
     "position": 0.0,
     "fullscreen": False,
     "playing": False,
-    "is_image": False,  # 현재 이미지 모드인지 표시
-    "image_path": "",   # 이미지 파일 경로
 }
+
 default = {
     "background_color": "white",
     "fullscreen": False,
@@ -68,6 +67,7 @@ class Player(QMainWindow):
         super().__init__()
         self.player_data = player_data
         self._default = default
+        self.currentFile = {}
         self.setWindowTitle("VP")
         self.setGeometry(100, 100, 800, 600)
         self.setWindowIcon(QIcon("icon.png"))
@@ -202,101 +202,108 @@ class Player(QMainWindow):
     def handle_message(self, data):
         # stdin에서 읽은 데이터는 이미 str이므로 decode 필요 없음
         self.receive_udp_data = data.strip()
-        # play:media_path
-        if self.receive_udp_data.startswith("play:"):
-            media_path = self.receive_udp_data[5:]  # "play:" 다음부터 끝까지
-            self.set_media(media_path.strip())
-            self.player.play()
-        # set:media_path
-        elif self.receive_udp_data.startswith("set:"):
-            media_path = self.receive_udp_data[4:]
-            self.set_media(media_path.strip())
-        # image:image_path
-        elif self.receive_udp_data.startswith("image:"):
-            image_path = self.receive_udp_data[6:].strip()
-            self.show_image(image_path)
-        # hide_image
-        elif self.receive_udp_data.startswith("hide_image"):
-            self.hide_image()
-        # stop
-        elif self.receive_udp_data.startswith("stop"):
-            if self.player_data["is_image"]:
+        # JSON 데이터 처리
+        data = json.loads(self.receive_udp_data)
+        if not isinstance(data, dict):
+            self.print_json("error", {"message": "Invalid data format. Expected a JSON object."})
+            return
+        if "command" not in data:
+            self.print_json("error", {"message": "Missing 'command' in data."})
+            return
+        command = data["command"]
+        if command == 'set':
+            self.currentFile = data.get("file", {})
+            if not self.currentFile:
+                self.print_json("error", {"message": "No file data provided."})
+                return
+            if not self.currentFile.get("is_image", True):
+                media_path = self.currentFile.get("path", "")
+                if not media_path:
+                    self.print_json("error", {"message": "No media path provided."})
+                    return
+                self.set_media(media_path.strip())
+        elif command == 'playid':
+            self.currentFile = data.get("file", {})
+            if not self.currentFile:
+                self.print_json("error", {"message": "No file data provided."})
+                return
+            media_path = self.currentFile.get("path", "")
+            if not media_path:
+                self.print_json("error", {"message": "No media path provided."})
+                return
+            # 현재 이미지가 표시 중이면 숨김
+            if self.currentFile.get("is_image", True):
+                self.show_image(media_path.strip())
+            else:
+                self.hide_image()
+                self.set_media(media_path.strip())
+                self.player.play()
+        elif command == 'play':
+            if self.currentFile.get("is_image", True):
+                self.show_image(self.currentFile.get("path", ""))
+            else:
+                self.player.play()
+        elif command == 'stop':
+            if self.currentFile.get("is_image", True):
                 self.hide_image()
             else:
                 self.player.stop()
-        # pause
-        elif self.receive_udp_data.startswith("pause"):
-            if not self.player_data["is_image"]:
+        elif command == 'pause':
                 self.player.pause()
-        # resume
-        elif self.receive_udp_data.startswith("resume"):
-            if not self.player_data["is_image"]:
+        elif command == 'resume':
+            if not self.currentFile.get("is_image", True):
                 self.player.play()
-        # play
-        elif self.receive_udp_data.startswith("play"):
-            if not self.player_data["is_image"]:
-                self.player.play()
-        # set:volume
-        elif self.receive_udp_data.startswith("volume:"):
-            volume = int(self.receive_udp_data[7:])
-            if 0 <= volume <= 100:
-                self.player.audio_set_volume(volume)
+        elif command == 'hide_image':
+            self.hide_image()
+        elif command == 'volume':
+                self.player.audio_set_volume(data['volume'])
+        elif command == 'position':
+            self.player.set_position(data['position'])
+        elif command == 'time':
+            self.player.set_time(data['time'])
+        elif command == 'speed':
+            self.player.set_rate(data['speed'])
+        elif command == 'fullscreen':
+            self.set_fullscreen(data['fullscreen'])
+        elif command == 'background_color':     
+            self.set_background_color(data['color'])
+            self._default["background_color"] = data['color']
+            self.save_default(self._default)
+        elif command == 'logo':
+            self.set_logo(data['path'].strip())
+            self._default["logo"]["path"] = os.path.normpath(data['path'].strip())
+            self.save_default(self._default)
+        elif command == 'show_logo':
+            self._default["logo"]["show"] = data['value']
+            self.save_default(self._default)
+        elif command == 'logo_size':
+            self._default["logo"]["width"] = data['width']
+            self._default["logo"]["height"] = data['height']
+            self.save_default(self._default)
+            self.show_logo(self._default["logo"]["show"])
+        elif command == 'get_audio_devices':
+            audio_devices = self.player.get_audio_output_devices()
+            audio_device = self.player.get_audio_output_device()
+            if audio_devices:
+                self.print_json("devices", {"audio_devices": audio_devices, "audio_device": audio_device})
             else:
-                self.print_json("error", {"message": "Invalid volume value. Must be between 0 and 100."})
-        # set:position
-        elif self.receive_udp_data.startswith("position:"):
-            position = float(self.receive_udp_data[9:])
-            if 0.0 <= position <= 1.0:
-                self.player.set_position(position)
+                self.print_json("error", {"message": "No audio devices found."})
+        elif command == 'set_audio_device':
+            if 'device' not in data:
+                self.print_json("error", {"message": "No audio device provided."})
+                return
+            audio_device = data['device']
+            if not audio_device:
+                self.print_json("error", {"message": "Invalid audio device."})
+                return
+            # Set the audio output device
+            self.player.set_audio_output_device(audio_device)
+            # 지정된 오디오 디바이스 확인하고 피드백하기
+            current_device = self.player.get_audio_output_device()
+            if current_device == audio_device:
+                self.print_json("devices", {"audio_device": current_device})
             else:
-                self.print_json("error", {"message": "Invalid position value. Must be between 0.0 and 1.0."})
-        # set:speed
-        elif self.receive_udp_data.startswith("speed:"):
-            speed = float(self.receive_udp_data[6:])
-            if speed > 0:
-                self.player.set_rate(speed)
-            else:
-                self.print_json("error", {"message": "Invalid speed value. Must be greater than 0."})
-        # set:fullscreen
-        elif self.receive_udp_data.startswith("fullscreen:"):
-            fullscreen = self.receive_udp_data[11:].lower() == "true"
-            self.set_fullscreen(fullscreen)
-            self._default["fullscreen"] = fullscreen
-            self.save_default(self._default)
-        # set: background_color
-        elif self.receive_udp_data.startswith("background_color:"):
-            color = self.receive_udp_data[17:]
-            self.set_background_color(color)
-            self._default["background_color"] = color
-            self.save_default(self._default)
-        # set:logo
-        elif self.receive_udp_data.startswith("set_logo:"):
-            logo_path = self.receive_udp_data[9:]
-            self.set_logo(logo_path.strip())
-            self._default["logo"]["path"] = logo_path.strip()
-            self.save_default(self._default)
-            
-        # show:logo
-        elif self.receive_udp_data.startswith("show_logo:"):
-            value = self.receive_udp_data[10:].lower() == "true"
-            self.show_logo(value)
-            self._default["logo"]["show"] = value
-            self.save_default(self._default)
-        
-        elif self.receive_udp_data.startswith("logo_size:"):
-            try:
-                size = self.receive_udp_data[10:].split(",")
-                if len(size) == 2:
-                    width = int(size[0])
-                    height = int(size[1])
-                    self._default["logo"]["width"] = width
-                    self._default["logo"]["height"] = height
-                    self.save_default(self._default)
-                    self.show_logo(self._default["logo"]["show"])
-                else:
-                    self.print_json("error", {"message": "Invalid logo size format. Use 'width,height'."})
-            except ValueError:
-                self.print_json("error", {"message":"Invalid logo size values. Must be integers."})
+                self.print_json("error", {"message": f"Failed to set audio device to {audio_device}."})
 
     def set_fullscreen(self, fullscreen):
         try:
@@ -522,13 +529,14 @@ class Player(QMainWindow):
         event.accept()
         
     def print_json(self, type, data):
-        # Print player data as object string (single line, UTF-8) for Node.js to easily parse
+        # Print player data as JSON (single line, UTF-8) for Node.js to easily parse
         try:
             output = {
                 "type": type,
                 "data": data
             }
-            print(json.dumps(output, ensure_ascii=False), flush=True)
+            json_data = json.dumps(output, ensure_ascii=False, separators=(",", ":"))
+            print(json_data, flush=True)
         except Exception as e:
             # Avoid recursion if print_json fails
             print(json.dumps({"type": "error", "data": {"message": f"Error printing JSON: {e}"}}), flush=True)

@@ -4,6 +4,7 @@ const logger = require('@logger')
 
 const { Server } = require('socket.io')
 const { getPlayerData } = require('@py/index.js')
+const parsing = require('@web/io/parcer')
 
 const httpServer = http.createServer(appServer)
 const io = new Server(httpServer, {
@@ -16,11 +17,17 @@ const io = new Server(httpServer, {
 io.on('connection', (socket) => {
   logger.info(`New client connected: ${socket.id}`)
   const rData = getPlayerData()
+
   if (rData) {
-    socket.emit('player', JSON.stringify(rData))
+    socket.emit('player', rData)
+    require('@api/player').sendCurrentFile() // Send current file data
   } else {
     logger.warn('No player data available to send')
   }
+
+  socket.on('event', (data) => {
+    parsing(data)
+  })
 
   // Handle disconnection
   socket.on('disconnect', () => {
