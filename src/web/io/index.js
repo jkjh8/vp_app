@@ -4,7 +4,7 @@ const logger = require('@logger')
 
 const { Server } = require('socket.io')
 const { pStatus } = require('@src/_status')
-const { parsing } = require('@web/io/parcer')
+const { parsing } = require('@web/io/parsing')
 
 const httpServer = http.createServer(appServer)
 const io = new Server(httpServer, {

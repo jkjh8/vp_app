@@ -1,8 +1,5 @@
 const {
   playid,
-  play,
-  pause,
-  stop,
   updateTime,
   setFullscreen,
   setLogo,
@@ -11,7 +8,7 @@ const {
   setBackground
 } = require('@api/player')
 const logger = require('@logger')
-const { pStatus } = require('@src/_status')
+let { pStatus } = require('@src/_status')
 
 const parsing = (data) => {
   try {
@@ -20,13 +17,13 @@ const parsing = (data) => {
         playid(data.value)
         break
       case 'play':
-        sendMessageToPython(`play`)
+        require('@py').sendMessageToPython({ command: 'play' })
         break
       case 'pause':
-        sendMessageToPython('pause')
+        require('@py').sendMessageToPython({ command: 'pause' })
         break
       case 'stop':
-        sendMessageToPython('stop')
+        require('@py').sendMessageToPython({ command: 'stop' })
         break
       case 'time':
         updateTime(data.value * 1000)
@@ -60,4 +57,4 @@ const parsing = (data) => {
   }
 }
 
-module.exports = parsing
+module.exports = { parsing }
