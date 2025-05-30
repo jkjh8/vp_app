@@ -11,36 +11,6 @@ from PySide6.QtSvgWidgets import QSvgWidget
 
 import vlc
 
-player_data = {
-    "event": "",
-    "buffering": 0,
-    "media_path": "",
-    "filename": "",
-    "volume": 100,
-    "speed": 1.0,
-    "duration": 0,
-    "time": 0,
-    "position": 0.0,
-    "fullscreen": False,
-    "playing": False,
-}
-
-default = {
-    "background_color": "white",
-    "fullscreen": False,
-    "logo": {
-        "path": "",
-        "x": 0,
-        "y": 0,
-        "width": 0,
-        "height": 0,
-        "show": False,
-    }
-}
-
-MULTICAST_GROUP = "239.255.255.250"
-MULTICAST_PORT = 1234
-
 class stdinReaderr(QThread):
     message_received = Signal(str)
     def __init__(self):
@@ -63,11 +33,10 @@ class stdinReaderr(QThread):
         self.running = False
 
 class Player(QMainWindow):
-    def __init__(self):
+    def __init__(self, pstatus=None):
         super().__init__()
-        self.player_data = player_data
-        self._default = default
-        self.currentFile = {}
+        self.pstatus = pstatus if pstatus else {}
+
         self.setWindowTitle("VP")
         self.setGeometry(100, 100, 800, 600)
         self.setWindowIcon(QIcon("icon.png"))
@@ -78,62 +47,30 @@ class Player(QMainWindow):
         self.logo_label.setAlignment(Qt.AlignCenter)
         self.svg_widget = QSvgWidget(self)
         self.svg_widget.setVisible(False)
-        
         # 이미지 표시를 위한 레이블 추가
         self.image_label = QLabel(self)
         self.image_label.setVisible(False)
         self.image_label.setAlignment(Qt.AlignCenter)
         self.image_label.setStyleSheet("background: transparent;")
-        
         # 레이아웃 설정
         layout = QVBoxLayout()
         central_widget = QWidget(self)
         central_widget.setLayout(layout)
         self.setCentralWidget(central_widget)
-        # 설정 로드 및 초기화
-        self._default = self.load_default()
         self.initPlayer()
-        # 입출력 스레드 초기화
         self.initStdinThread()
-
-        self.set_background_color(self._default["background_color"])
-        self.set_fullscreen(self._default["fullscreen"])
-        self.set_logo(self._default["logo"]["path"])
-        self.show_logo(self._default["logo"]["show"])
-        # 우선순위 설정
+        self.initUi()
         try:
             handle = win32process.GetCurrentProcess()
             win32process.SetPriorityClass(handle, win32con.REALTIME_PRIORITY_CLASS)
         except Exception as e:
             self.print_json("error", {"message": f"우선순위 설정 실패: {e}"})
 
-    def save_default(self, data=None):
-        # Save default settings to a file
-        if not data:
-            return
-        try:
-            with open("default.json", "w") as f:
-                json.dump(self._default, f)
-            self.print_json("info", {"message": "Default settings saved."})
-        except Exception as e:
-            self.print_json("error", {"message": f"Error saving default settings: {e}"})
-
-    def load_default(self):
-        # Load default settings from a file
-        try:
-            with open("default.json", "r") as f:
-                data = json.load(f)
-            self.print_json("info", {"message": "Default settings loaded."})
-            return data
-        except FileNotFoundError:
-            self.print_json("error", {"message": "Default settings file not found."})
-            return self._default
-        except json.JSONDecodeError:
-            self.print_json("error", {"message": "Error decoding JSON from default settings file."})
-            return self._default
-        except Exception as e:
-            self.print_json("error", {"message": f"Error loading default settings: {e}"})
-            return self._default
+    def initUi(self):
+        self.set_background_color(self.pstatus.get("background", "white"))
+        self.set_fullscreen(self.pstatus.get("fullscreen", False))
+        self.set_logo(self.pstatus.get("logo", {}).get("path", ""))
+        self.show_logo(self.pstatus.get("logo", {}).get("show", False))
 
     def initStdinThread(self):
         # Initialize stdin thread
@@ -170,7 +107,7 @@ class Player(QMainWindow):
     def on_buffering(self, event):
         buffering = getattr(event.u, "buffering", None)
         if buffering is not None:
-            self.player_data["buffering"] = buffering
+            self.pstatus['player']['buffering'] = buffering
         else:
             self.print_json("error", {"message": "Buffering event received, but no buffering info found."})
 
@@ -183,20 +120,20 @@ class Player(QMainWindow):
 
     def update_player_data(self, event=None):
         event_type = getattr(event, "type", "manual")
-        self.player_data["event"] = str(event_type)
+        self.pstatus['player']['event'] = str(event_type)
         media = self.player.get_media()
         if media is not None:
-            self.player_data["filename"] = media.get_mrl()
+            self.pstatus['player']['filename'] = media.get_mrl()
         else:
-            self.player_data["filename"] = ""
-        self.player_data["duration"] = self.player.get_length()
-        self.player_data["time"] = self.player.get_time()
-        self.player_data["position"] = self.player.get_position()
-        self.player_data["playing"] = self.player.is_playing()
-        self.player_data["volume"] = self.player.audio_get_volume()
-        self.player_data["speed"] = self.player.get_rate()
-        self.player_data["fullscreen"] = self.player.get_fullscreen()
-        self.print_json("info", self.player_data)
+            self.pstatus['player']['filename'] = ""
+        self.pstatus['player']['duration'] = self.player.get_length()
+        self.pstatus['player']['time'] = self.player.get_time()
+        self.pstatus['player']['position'] = self.player.get_position()
+        self.pstatus['player']['playing'] = self.player.is_playing()
+        self.pstatus['player']['volume'] = self.player.audio_get_volume()
+        self.pstatus['player']['speed'] = self.player.get_rate()
+        self.pstatus['player']['fullscreen'] = self.player.get_fullscreen()
+        self.print_json("info", self.pstatus)
 
     @Slot(str)
     def handle_message(self, data):
@@ -212,6 +149,7 @@ class Player(QMainWindow):
             return
         command = data["command"]
         if command == 'set':
+            file = data.get("file", {})
             self.currentFile = data.get("file", {})
             if not self.currentFile:
                 self.print_json("error", {"message": "No file data provided."})
@@ -223,35 +161,35 @@ class Player(QMainWindow):
                     return
                 self.set_media(media_path.strip())
         elif command == 'playid':
-            self.currentFile = data.get("file", {})
-            if not self.currentFile:
+            self.pstatus['current'] = data.get("file", {})
+            if not self.pstatus['current']:
                 self.print_json("error", {"message": "No file data provided."})
                 return
-            media_path = self.currentFile.get("path", "")
+            media_path = self.pstatus['current'].get("path", "")
             if not media_path:
                 self.print_json("error", {"message": "No media path provided."})
                 return
             # 현재 이미지가 표시 중이면 숨김
-            if self.currentFile.get("is_image", True):
+            if self.pstatus['current'].get("is_image", True):
                 self.show_image(media_path.strip())
             else:
                 self.hide_image()
                 self.set_media(media_path.strip())
                 self.player.play()
         elif command == 'play':
-            if self.currentFile.get("is_image", True):
-                self.show_image(self.currentFile.get("path", ""))
+            if self.pstatus['current'].get("is_image", True):
+                self.show_image(self.pstatus['current'].get("path", ""))
             else:
                 self.player.play()
         elif command == 'stop':
-            if self.currentFile.get("is_image", True):
+            if self.pstatus['current'].get("is_image", True):
                 self.hide_image()
             else:
                 self.player.stop()
         elif command == 'pause':
                 self.player.pause()
         elif command == 'resume':
-            if not self.currentFile.get("is_image", True):
+            if not self.pstatus['current'].get("is_image", True):
                 self.player.play()
         elif command == 'hide_image':
             self.hide_image()
@@ -267,20 +205,16 @@ class Player(QMainWindow):
             self.set_fullscreen(data['fullscreen'])
         elif command == 'background_color':     
             self.set_background_color(data['color'])
-            self._default["background_color"] = data['color']
-            self.save_default(self._default)
+            self.pstatus['background'] = data['color']
         elif command == 'logo':
             self.set_logo(data['path'].strip())
-            self._default["logo"]["path"] = os.path.normpath(data['path'].strip())
-            self.save_default(self._default)
+            self.pstatus["logo"]["path"] = os.path.normpath(data['path'].strip())
         elif command == 'show_logo':
-            self._default["logo"]["show"] = data['value']
-            self.save_default(self._default)
+            self.pstatus["logo"]["show"] = data['value']
         elif command == 'logo_size':
-            self._default["logo"]["width"] = data['width']
-            self._default["logo"]["height"] = data['height']
-            self.save_default(self._default)
-            self.show_logo(self._default["logo"]["show"])
+            self.pstatus["logo"]["width"] = data['width']
+            self.pstatus["logo"]["height"] = data['height']
+            self.show_logo(self.pstatus["logo"]["show"])
         elif command == 'get_audio_devices':
             audio_devices = self.player.get_audio_output_devices()
             audio_device = self.player.get_audio_output_device()
@@ -304,6 +238,14 @@ class Player(QMainWindow):
                 self.print_json("devices", {"audio_device": current_device})
             else:
                 self.print_json("error", {"message": f"Failed to set audio device to {audio_device}."})
+        elif command == 'initialize':
+            self.pstatus = data.get("pstatus", {})
+            if not isinstance(self.pstatus, dict):
+                self.print_json("error", {"message": "Invalid pstatus format. Expected a JSON object."})
+                return
+            # 기본 설정 적용
+            self.initUi()
+
 
     def set_fullscreen(self, fullscreen):
         try:
@@ -312,7 +254,7 @@ class Player(QMainWindow):
             else:
                 self.showNormal()
             self.player.set_fullscreen(fullscreen)
-            self.player_data["fullscreen"] = fullscreen
+            self.pstatus['player']['fullscreen'] = fullscreen
             self.player.set_hwnd(int(self.winId()))
             self.update_player_data(None)  # 또는 그냥 self.update_player_data()
         except Exception as e:
@@ -322,7 +264,7 @@ class Player(QMainWindow):
         try:
             # Set background color
             self.setStyleSheet(f"background-color: {color};")
-            self.print_json("default", self._default)
+            self.print_json("default", {"background_color": color})
         except Exception as e:
             self.print_json("error", {"message": f"Error setting background color: {e}"})
 
@@ -332,21 +274,21 @@ class Player(QMainWindow):
             if not logo_path or logo_path == "":
                 self.print_json("error", {"message": "No logo path provided."})
                 return
-            self._default["logo"]["path"] = os.path.normpath(logo_path.strip())
-            self.print_json("default", self._default)
+            self.logo_path = os.path.normpath(logo_path.strip())
+            self.print_json("default", {"logo_path": self.logo_path})
         except Exception as e:
             self.print_json("error", {"message": f"Error setting logo: {e}"})
             
     def show_logo(self, value):
         try:
-            logo_path = self._default["logo"]["path"]
+            logo_path = self.pstatus["logo"]["path"]
             if not logo_path or not os.path.isfile(logo_path):
                 self.logo_label.setVisible(False)
                 self.svg_widget.setVisible(False)
                 return
             ext = os.path.splitext(logo_path)[1].lower()
-            width = self._default["logo"].get("width", 0)
-            height = self._default["logo"].get("height", 0)
+            width = self.pstatus["logo"].get("width", 0)
+            height = self.pstatus["logo"].get("height", 0)
             if ext == ".svg":
                 self.logo_label.setVisible(False)
                 self.svg_widget.load(logo_path)
@@ -390,7 +332,7 @@ class Player(QMainWindow):
                     )
                 self.logo_label.setVisible(value)
                 self.logo_label.raise_()
-                self.print_json("default", self._default)
+                self.print_json("info", self.pstatus)
         except Exception as e:
             self.print_json("error", {"message": f"Error showing logo: {e}"})
 
@@ -449,9 +391,6 @@ class Player(QMainWindow):
                 self.image_label.raise_()
             
             # 플레이어 데이터 업데이트
-            self.player_data["is_image"] = True
-            self.player_data["image_path"] = image_path
-            self.player_data["playing"] = False
             self.update_player_data()
             
         except Exception as e:
@@ -466,8 +405,6 @@ class Player(QMainWindow):
             self.svg_widget.setVisible(False)
             
             # 플레이어 데이터 업데이트
-            self.player_data["is_image"] = False
-            self.player_data["image_path"] = ""
             self.update_player_data()
             
         except Exception as e:
@@ -481,12 +418,13 @@ class Player(QMainWindow):
                 return
                 
             # 현재 이미지가 표시 중이면 숨김
-            if self.player_data["is_image"]:
+            if self.pstatus['current'].get("is_image", False):
                 self.hide_image()
                 
-            self.player_data["media_path"] = os.path.normpath(media_path.strip())
-            self.player.set_media(self.instance.media_new(self.player_data["media_path"]))
-            self.print_json("info", self.player_data)
+            # 미디어 경로 정규화 및 설정
+            self.pstatus['player']['media_path'] = media_path.strip()
+            self.player.set_media(self.instance.media_new(self.pstatus['player']['media_path']))
+            self.print_json("info", self.pstatus)
         except Exception as e:
             self.print_json("error", {"message": f"Error setting media: {e}"})
 
@@ -495,8 +433,11 @@ class Player(QMainWindow):
         # ...existing code...
         
         # 이미지가 표시 중이면 크기 재조정
-        if self.player_data["is_image"] and self.player_data["image_path"]:
-            if os.path.splitext(self.player_data["image_path"])[1].lower() == ".svg":
+        # player_data에 is_image, image_path 키가 없을 수 있으니 get으로 안전하게 접근
+        is_image = self.pstatus['current'].get("is_image", False)
+        image_path = self.pstatus['current'].get("path", "")
+        if is_image and image_path:
+            if os.path.splitext(image_path)[1].lower() == ".svg":
                 if self.svg_widget.isVisible():
                     self.svg_widget.adjustSize()
                     self.svg_widget.move(
@@ -505,12 +446,12 @@ class Player(QMainWindow):
                     )
             else:
                 if self.image_label.isVisible() and self.image_label.pixmap():
-                    original_pixmap = QPixmap(self.player_data["image_path"])
+                    original_pixmap = QPixmap(image_path)
                     screen_size = self.size()
                     scaled_pixmap = original_pixmap.scaled(
-                        screen_size.width(), 
+                        screen_size.width(),
                         screen_size.height(),
-                        Qt.KeepAspectRatio, 
+                        Qt.KeepAspectRatio,
                         Qt.SmoothTransformation
                     )
                     self.image_label.setPixmap(scaled_pixmap)
@@ -519,7 +460,7 @@ class Player(QMainWindow):
                         (self.width() - scaled_pixmap.width()) // 2,
                         (self.height() - scaled_pixmap.height()) // 2
                     )
-        
+
         super().resizeEvent(event)
     
     def closeEvent(self, event):
@@ -543,8 +484,18 @@ class Player(QMainWindow):
 
 
 if __name__ == "__main__":
+    # 환경변수로 전달된 pStatus 받기 (없으면 None)
+    import os
+    vp_pstatus_json = os.environ.get("VP_PSTATUS")
+    pstatus = None
+    if vp_pstatus_json:
+        try:
+            import json
+            pstatus = json.loads(vp_pstatus_json)
+        except Exception as e:
+            print(f"Failed to parse VP_PSTATUS: {e}", flush=True)
     app = QApplication(sys.argv)
-    player = Player()
+    player = Player(pstatus=pstatus)
     player.show()
     sys.exit(app.exec())
 

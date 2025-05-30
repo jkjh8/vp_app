@@ -11,6 +11,8 @@ const {
   setBackground
 } = require('@api/player')
 const logger = require('@logger')
+const { pStatus } = require('@src/_status')
+
 const parsing = (data) => {
   try {
     switch (data.type) {
@@ -34,15 +36,21 @@ const parsing = (data) => {
         break
       case 'logo':
         setLogo(data.value)
+        pStatus.logo.file = data.value
+        pStatus.logo.show = true
         break
       case 'show_logo':
         showLogo(data.value)
+        pStatus.logo.show = data.value
         break
       case 'logo_size':
         setLogoSize(data.height, data.width)
+        pStatus.logo.height = data.height
+        pStatus.logo.width = data.width
         break
       case 'background':
         setBackground(data.value)
+        pStatus.background = data.value
         break
       default:
         console.warn('Unknown data type:', data.type)
