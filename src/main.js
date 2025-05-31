@@ -12,10 +12,12 @@ const { startPythonProcess } = require('@py')
 const { stopPythonProcess } = require('@py')
 const logger = require('@logger')
 require('@db')
+const { getSetupfromDB } = require('@api/status')
 const { initIOServer } = require('@web/io')
 const {
   existsMediaPath,
   existsTmpPath,
+  existsLogoPath,
   deleteTmpFiles
 } = require('@api/files/folders')
 const { start } = require('repl')
@@ -52,12 +54,14 @@ function createWindow() {
 }
 
 // Electron이 준비되면 윈도우 생성
-app.whenReady().then(function () {
+app.whenReady().then(async function () {
   // 미디어 및 임시 디렉토리 생성
   existsTmpPath() // 임시 디렉토리 확인 및 생성
   deleteTmpFiles() // 임시 디렉토리 내 모든 파일 삭제
   existsMediaPath() // 미디어 디렉토리 확인 및 생성
+  existsLogoPath() // 로고 디렉토리 확인 및 생성
   //데이터 베이스 초기화
+  await getSetupfromDB()
   // http 서버 시작
   const io = initIOServer(3000)
   // startPythonProcess()
@@ -67,7 +71,7 @@ app.whenReady().then(function () {
   // macOS에서는 앱이 활성화될 때 창이 없으면 새로 생성
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
+      // createWindow()
     }
   })
 })

@@ -11,9 +11,7 @@ const router = express.Router()
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
-      const tmpPath = getTmpPath()
-      console.log('tmpPath:', tmpPath)
-      cb(null, tmpPath)
+      cb(null, getTmpPath())
     },
     filename: (req, file, cb) => {
       cb(null, decodeURIComponent(file.fieldname))
@@ -83,6 +81,27 @@ router.delete('/:uuid', async (req, res) => {
     res.status(200).json({ message: 'File deleted successfully' })
   } catch (error) {
     logger.error(`Error deleting file: ${error}`)
+    res.status(500).json({ error: 'Internal Server Error' })
+  }
+})
+
+// 파일 다운로드
+router.get('/download/:uuid', async (req, res) => {
+  const { uuid } = req.params
+  try {
+    const file = await db.files.findOne({ uuid })
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' })
+    }
+    const filePath = path.join(getMediaPath(), uuid, file.filename)
+    res.download(filePath, (err) => {
+      if (err) {
+        logger.error(`Error downloading file: ${err}`)
+        res.status(500).json({ error: 'Internal Server Error' })
+      }
+    })
+  } catch (error) {
+    logger.error(`Error fetching file for download: ${error}`)
     res.status(500).json({ error: 'Internal Server Error' })
   }
 })

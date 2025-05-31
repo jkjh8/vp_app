@@ -12,53 +12,53 @@ const playid = async (id) => {
 
   pStatus.current = file
 
-  // sendMessageToPython(`play:${currentFile.path}`)
-  require('@py').sendMessageToPython({ command: 'playid', file: file })
+  // send(`play:${currentFile.path}`)
+  require('@py').send({ command: 'playid', file: file })
 
   return `Playing file: ${file.path}`
 }
 
 const play = () => {
   logger.info('Received play request without ID')
-  require('@py').sendMessageToPython({ command: 'play' })
+  require('@py').send({ command: 'play' })
   return 'Playing without ID'
 }
 
 const pause = () => {
   logger.info('Received pause request')
-  require('@py').sendMessageToPython({ command: 'pause' })
+  require('@py').send({ command: 'pause' })
   return 'Player paused'
 }
 
 const stop = () => {
   logger.info('Received stop request')
-  require('@py').sendMessageToPython({ command: 'stop' })
+  require('@py').send({ command: 'stop' })
   return 'Player stopped'
 }
 
 const updateTime = (time) => {
   logger.info(`Updating player time to: ${time}`)
-  require('@py').sendMessageToPython({ command: 'time', time })
+  require('@py').send({ command: 'time', time })
 }
 
 const setFullscreen = (fullscreen) => {
   logger.info(`Setting fullscreen mode to: ${fullscreen}`)
-  require('@py').sendMessageToPython({ command: 'fullscreen', fullscreen })
+  require('@py').send({ command: 'fullscreen', fullscreen })
 }
 
 const setLogo = (logo) => {
   logger.info(`Setting logo to: ${logo}`)
-  require('@py').sendMessageToPython({ command: 'logo', path: logo })
+  require('@py').send({ command: 'logo', path: logo })
 }
 
 const showLogo = (show) => {
   logger.info(`Setting logo visibility to: ${show}`)
-  require('@py').sendMessageToPython({ command: 'show_logo', value: show })
+  require('@py').send({ command: 'show_logo', value: show })
 }
 
 const setLogoSize = (h, w) => {
   logger.info(`Setting logo size to: height=${h}, width=${w}`)
-  require('@py').sendMessageToPython({
+  require('@py').send({
     command: 'logo_size',
     height: h,
     width: w
@@ -67,7 +67,7 @@ const setLogoSize = (h, w) => {
 
 const setBackground = (background) => {
   logger.info(`Setting background to: ${background}`)
-  require('@py').sendMessageToPython({
+  require('@py').send({
     command: 'background',
     color: background
   })

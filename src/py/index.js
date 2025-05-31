@@ -52,7 +52,7 @@ function stopPythonProcess() {
   logger.info('Python process has been terminated.')
 }
 
-function sendMessageToPython(message) {
+function send(message) {
   const proc = getPythonProcess()
   if (!proc) {
     logger.warn('Python process is not running.')
@@ -72,12 +72,12 @@ function getAudioDevices() {
     logger.warn('Python process is not running.')
     return []
   }
-  sendMessageToPython({ command: 'get_audio_devices' })
+  send({ command: 'get_audio_devices' })
 }
 
 module.exports = {
   startPythonProcess,
   stopPythonProcess,
-  sendMessageToPython,
+  send,
   getAudioDevices
 }

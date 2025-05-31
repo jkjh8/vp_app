@@ -28,7 +28,7 @@ const parsing = (data) => {
           break
         case 'stop':
           logger.info(`Received stop command from Python:${message.data}`)
-          require('@py').sendMessageToPython({ command: 'stop' })
+          require('@py').send({ command: 'stop' })
           break
         case 'event':
           switch (message.data.event) {
@@ -43,33 +43,33 @@ const parsing = (data) => {
                       logger.info(
                         `End of track reached(none), moving to next track in playlist. Current index: ${message.data.playlist_index}`
                       )
-                      require('@py').sendMessageToPython({ command: 'next' })
+                      require('@py').send({ command: 'next' })
                     } else {
-                      require('@py').sendMessageToPython({ command: 'stop' })
+                      require('@py').send({ command: 'stop' })
                     }
                   } else {
                     logger.info('End of track reached, stopping playback.')
-                    require('@py').sendMessageToPython({ command: 'stop' })
+                    require('@py').send({ command: 'stop' })
                   }
                   break
                 case 'all':
                   if (pStatus.playlistmode) {
                     logger.info('End of playlist reached, stopping playback.')
-                    require('@py').sendMessageToPython({ command: 'next' })
+                    require('@py').send({ command: 'next' })
                   } else {
                     logger.info('End of track reached, stopping playback.')
-                    require('@py').sendMessageToPython({ command: 'stop' })
-                    require('@py').sendMessageToPython({ command: 'play' })
+                    require('@py').send({ command: 'stop' })
+                    require('@py').send({ command: 'play' })
                   }
                   break
                 case 'single':
                   logger.info('End of single track reached, stopping playback.')
-                  require('@py').sendMessageToPython({ command: 'stop' })
+                  require('@py').send({ command: 'stop' })
                   break
                 case 'repeat_one':
                   logger.info('Repeat one mode, restarting current track.')
-                  require('@py').sendMessageToPython({ command: 'stop' })
-                  require('@py').sendMessageToPython({ command: 'play' })
+                  require('@py').send({ command: 'stop' })
+                  require('@py').send({ command: 'play' })
                   break
               }
               break

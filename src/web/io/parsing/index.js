@@ -17,13 +17,13 @@ const parsing = (data) => {
         playid(data.value)
         break
       case 'play':
-        require('@py').sendMessageToPython({ command: 'play' })
+        require('@py').send({ command: 'play' })
         break
       case 'pause':
-        require('@py').sendMessageToPython({ command: 'pause' })
+        require('@py').send({ command: 'pause' })
         break
       case 'stop':
-        require('@py').sendMessageToPython({ command: 'stop' })
+        require('@py').send({ command: 'stop' })
         break
       case 'time':
         updateTime(data.value * 1000)
@@ -51,7 +51,7 @@ const parsing = (data) => {
         break
       case 'repeat':
         pStatus.repeat = data.value
-        require('@py').sendMessageToPython({
+        require('@py').send({
           command: 'repeat',
           mode: pStatus.repeat
         })

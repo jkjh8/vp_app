@@ -44,11 +44,10 @@ def handle_repeat(player, data):
 def update_pstatus(player, data):
     new_pstatus = data.get("pstatus", {})
     if isinstance(new_pstatus, dict):
-        player_data = player.pstatus.get("player", {})
-        current_data = player.pstatus.get("current", {})
-        player.pstatus = {k: v for k, v in new_pstatus.items() if k not in ("player", "current")}
-        player.pstatus["player"] = player_data
-        player.pstatus["current"] = current_data
+        # 기존 player, current 값을 유지하면서 나머지만 업데이트
+        for k, v in new_pstatus.items():
+            if k not in ("player", "current"):
+                player.pstatus[k] = v
     else:
         player.print_json("error", {"message": "Invalid pstatus format. Expected a JSON object."})
 
