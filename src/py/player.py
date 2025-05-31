@@ -2,34 +2,19 @@ import os
 import sys
 import win32process, win32con
 import json
+import vlc
 from PySide6.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget
 from PySide6.QtCore import Qt, QThread, Signal, Slot
 from PySide6.QtGui import QPixmap, QIcon
 from PySide6.QtSvgWidgets import QSvgWidget
-import functools
 
-import vlc
-
-class stdinReaderr(QThread):
-    message_received = Signal(str)
-    def __init__(self):
-        super().__init__()
-        self.running = True
-
-    def run(self):
-        while self.running:
-            try:
-                if self.running == False:
-                    break
-                data = sys.stdin.readline()
-                if data:
-                    self.message_received.emit(data.strip())
-            except Exception as e:
-                self.print_json("error", {"message": f"Error reading stdin: {e}"})
-                break
-
-    def stop(self):
-        self.running = False
+from playlist import (
+    swap_players, fade_transition, preload_next_media, handle_next_command,
+    play_from_playlist, is_image_file, set_playlist, preload_next_from_playlist
+)
+from audio_device import initDoublePlayers, update_player_data
+from handle_message import handle_message
+from stdin import stdinReaderr
 
 class Player(QMainWindow):
     def __init__(self, pstatus=None):
@@ -39,6 +24,8 @@ class Player(QMainWindow):
         self.setWindowTitle("VP")
         self.setGeometry(100, 100, 800, 600)
         self.setWindowIcon(QIcon("icon.png"))
+        # 오디오 디바이스
+        self.audioDevices = []
         # 더블버퍼 플레이어 및 이미지 레이블
         self.playerA = None
         self.playerB = None
@@ -71,7 +58,7 @@ class Player(QMainWindow):
         central_widget = QWidget(self)
         central_widget.setLayout(layout)
         self.setCentralWidget(central_widget)
-        self.initDoublePlayers()
+        initDoublePlayers(self)
         self.initStdinThread()
         self.initUi()
         try:
@@ -80,7 +67,6 @@ class Player(QMainWindow):
         except Exception as e:
             self.print_json("error", {"message": f"우선순위 설정 실패: {e}"})
 
-        self.playlist_index = 0
         self.next_file = None
 
     def initUi(self):
@@ -92,268 +78,8 @@ class Player(QMainWindow):
     def initStdinThread(self):
         # Initialize stdin thread
         self.stdin_thread = stdinReaderr()
-        self.stdin_thread.message_received.connect(self.handle_message)
+        self.stdin_thread.message_received.connect(lambda data: handle_message(self, data))
         self.stdin_thread.start()
-
-    def initDoublePlayers(self):
-        # VLC 인스턴스 2개 생성
-        self.instanceA = vlc.Instance(
-            "--no-video-title-show",
-            "--avcodec-hw=any",
-            "--no-drop-late-frames",
-            "--no-skip-frames"
-        )
-        self.instanceB = vlc.Instance(
-            "--no-video-title-show",
-            "--avcodec-hw=any",
-            "--no-drop-late-frames",
-            "--no-skip-frames"
-        )
-        self.playerA = self.instanceA.media_player_new()
-        self.playerB = self.instanceB.media_player_new()
-        self.playerA.set_hwnd(int(self.winId()))
-        self.playerB.set_hwnd(int(self.winId()))
-        self.active_player = self.playerA
-        self.next_player = self.playerB
-        # 이벤트 핸들러 등록
-        self.init_events_double()
-
-    # def init_events(self):
-    #     # 이벤트 등록하기
-    #     self.player.event_manager().event_attach(vlc.EventType.MediaPlayerTimeChanged, self.update_player_data)
-    #     self.player.event_manager().event_attach(vlc.EventType.MediaPlayerPlaying, self.update_player_data)
-    #     self.player.event_manager().event_attach(vlc.EventType.MediaPlayerPaused, self.update_player_data)
-    #     self.player.event_manager().event_attach(vlc.EventType.MediaPlayerStopped, self.update_player_data)
-    #     self.player.event_manager().event_attach(vlc.EventType.MediaPlayerEndReached, self.on_end_reached)
-    #     self.player.event_manager().event_attach(vlc.EventType.MediaPlayerEncounteredError, self.on_error)
-    #     self.player.event_manager().event_attach(vlc.EventType.MediaPlayerMediaChanged, self.update_player_data)
-        
-    def init_events_double(self):
-        try:
-            self.print_json("message", {"message": "Initializing double player events"})
-            event_types = [
-                (vlc.EventType.MediaPlayerEndReached, self.on_end_reached),
-                (vlc.EventType.MediaPlayerEncounteredError, self.on_error),
-                (vlc.EventType.MediaPlayerTimeChanged, self.update_player_data),
-                (vlc.EventType.MediaPlayerPlaying, self.update_player_data),
-                (vlc.EventType.MediaPlayerPaused, self.update_player_data),
-                (vlc.EventType.MediaPlayerStopped, self.update_player_data),
-                (vlc.EventType.MediaPlayerMediaChanged, self.update_player_data),
-            ]
-            for player in [self.playerA, self.playerB]:
-                em = player.event_manager()
-                for event_type, handler in event_types:
-                    em.event_attach(event_type, self._make_event_handler(handler, player))
-        except Exception as e:
-            self.print_json("error", {"message": f"Error initializing double player events: {e}"})
-
-    def _make_event_handler(self, handler, which_player):
-        def event_handler(event):
-            event._which_player = which_player
-            handler(event)
-        return event_handler
-
-    def on_end_reached(self, event):
-        try:
-            self.print_json("message", {"message": "End reached event triggered"})
-            self.update_player_data(event)
-            # 단일 파일 모드(playlistmode == False)에서도 end 이벤트가 오면 stop 이벤트 발생
-            if not self.playlistmode:
-                self.print_json("stop", {"message": "재생이 중지되었습니다."})
-                return
-            repeat_mode = self.pstatus.get('repeat', 'none')
-            playlist = self.pstatus.get('playlist', [])
-            # single: 현재 곡/파일만 반복
-            if repeat_mode == 'single':
-                self.active_player.stop()
-                self.active_player.play()
-            # all: 리스트 끝이면 중지, 아니면 next
-            elif repeat_mode == 'all':
-                if self.playlist_index + 1 < len(playlist):
-                    self.handle_next_command(self.playlist_index + 1)
-                else:
-                    self.print_json("info", {"message": "플레이리스트 끝 (all)"})
-                    self.print_json("stop", {"message": "재생이 중지되었습니다."})
-            # all_repeat: 리스트 끝이면 처음으로, 아니면 next
-            elif repeat_mode == 'all_repeat':
-                if self.playlist_index + 1 < len(playlist):
-                    self.handle_next_command(self.playlist_index + 1)
-                else:
-                    self.handle_next_command(0)
-            # none: 하나만 재생하고 중지
-            elif repeat_mode == 'none':
-                self.print_json("info", {"message": "재생 완료 (none)"})
-                self.print_json("stop", {"message": "재생이 중지되었습니다."})
-            else:
-                # 기본 동작: all과 동일
-                if self.playlist_index + 1 < len(playlist):
-                    self.handle_next_command(self.playlist_index + 1)
-                else:
-                    self.print_json("info", {"message": "플레이리스트 끝 (default)"})
-                    self.print_json("stop", {"message": "재생이 중지되었습니다."})
-        except Exception as e:
-            self.print_json("error", {"message": f"Exception in on_end_reached: {e}"})
-
-    def on_error(self, event):
-        self.print_json("error", {"message": "Error occurred"})
-
-    def update_player_data(self, event=None):
-        # 이벤트가 있으면 어떤 플레이어에서 발생했는지 확인
-        player = getattr(event, "_which_player", None) if event is not None else self.active_player
-        # 현재 활성 플레이어만 처리
-        if player != self.active_player:
-            return
-        event_type = getattr(event, "type", "manual") if event is not None else "manual"
-        self.pstatus.setdefault('player', {})
-        self.pstatus['player']['event'] = str(event_type)
-        media = self.active_player.get_media()
-        if media is not None:
-            self.pstatus['player']['filename'] = media.get_mrl()
-        else:
-            self.pstatus['player']['filename'] = ""
-        self.pstatus['player']['duration'] = self.active_player.get_length()
-        self.pstatus['player']['time'] = self.active_player.get_time()
-        self.pstatus['player']['position'] = self.active_player.get_position()
-        self.pstatus['player']['playing'] = self.active_player.is_playing()
-        self.pstatus['player']['volume'] = self.active_player.audio_get_volume()
-        self.pstatus['player']['speed'] = self.active_player.get_rate()
-        self.pstatus['player']['fullscreen'] = self.active_player.get_fullscreen()
-        self.print_json("info", self.pstatus)
-
-    @Slot(str)
-    def handle_message(self, data):
-        # stdin에서 읽은 데이터는 이미 str이므로 decode 필요 없음
-        self.receive_udp_data = data.strip()
-        # JSON 데이터 처리
-        data = json.loads(self.receive_udp_data)
-        if not isinstance(data, dict):
-            self.print_json("error", {"message": "Invalid data format. Expected a JSON object."})
-            return
-        if "command" not in data:
-            self.print_json("error", {"message": "Missing 'command' in data."})
-            return
-        command = data["command"]
-        if command == 'set':
-            file = data.get("file", {})
-            self.pstatus['current'] = file
-            if not self.pstatus['current']:
-                self.print_json("error", {"message": "No file data provided."})
-                return
-            if not self.pstatus['current'].get("is_image", True):
-                media_path = self.pstatus['current'].get("path", "")
-                if not media_path:
-                    self.print_json("error", {"message": "No media path provided."})
-                    return
-                self.set_media(media_path.strip())
-        elif command == 'playid':
-            self.pstatus['current'] = data.get("file", {})
-            if not self.pstatus['current']:
-                self.print_json("error", {"message": "No file data provided."})
-                return
-            media_path = self.pstatus['current'].get("path", "")
-            if not media_path:
-                self.print_json("error", {"message": "No media path provided."})
-                return
-            # 현재 이미지가 표시 중이면 숨김
-            if self.pstatus['current'].get("is_image", True):
-                self.show_image(media_path.strip())
-            else:
-                self.hide_image()
-                self.set_media(media_path.strip())
-                self.active_player.play()
-        elif command == 'play':
-            if self.pstatus['current'].get("is_image", True):
-                self.show_image(self.pstatus['current'].get("path", ""))
-            else:
-                self.active_player.play()
-        elif command == 'stop':
-            if self.pstatus['current'].get("is_image", True):
-                self.hide_image()
-            else:
-                self.active_player.stop()
-        elif command == 'pause':
-            self.active_player.pause()
-        elif command == 'resume':
-            if not self.pstatus['current'].get("is_image", True):
-                self.active_player.play()
-        elif command == 'hide_image':
-            self.hide_image()
-        elif command == 'volume':
-            self.active_player.audio_set_volume(data['volume'])
-        elif command == 'position':
-            self.active_player.set_position(data['position'])
-        elif command == 'time':
-            self.active_player.set_time(data['time'])
-        elif command == 'speed':
-            self.active_player.set_rate(data['speed'])
-        elif command == 'fullscreen':
-            self.set_fullscreen(data['fullscreen'])
-        elif command == 'background_color':     
-            self.set_background_color(data['color'])
-            self.pstatus['background'] = data['color']
-        elif command == 'logo':
-            self.set_logo(data['path'].strip())
-            self.pstatus.setdefault("logo", {})["path"] = os.path.normpath(data['path'].strip())
-        elif command == 'show_logo':
-            self.pstatus.setdefault("logo", {})["show"] = data['value']
-            self.show_logo(self.pstatus["logo"]["show"])
-        elif command == 'logo_size':
-            self.pstatus.setdefault("logo", {})["width"] = data['width']
-            self.pstatus.setdefault("logo", {})["height"] = data['height']
-            self.show_logo(self.pstatus["logo"].get("show", False))
-        elif command == 'get_audio_devices':
-            audio_devices = self.active_player.get_audio_output_devices()
-            audio_device = self.active_player.get_audio_output_device()
-            if audio_devices:
-                self.print_json("devices", {"audio_devices": audio_devices, "audio_device": audio_device})
-            else:
-                self.print_json("error", {"message": "No audio devices found."})
-        elif command == 'set_audio_device':
-            if 'device' not in data:
-                self.print_json("error", {"message": "No audio device provided."})
-                return
-            audio_device = data['device']
-            if not audio_device:
-                self.print_json("error", {"message": "Invalid audio device."})
-                return
-            # Set the audio output device
-            self.active_player.set_audio_output_device(audio_device)
-            # 지정된 오디오 디바이스 확인하고 피드백하기
-            current_device = self.active_player.get_audio_output_device()
-            if current_device == audio_device:
-                self.print_json("devices", {"audio_device": current_device})
-            else:
-                self.print_json("error", {"message": f"Failed to set audio device to {audio_device}."})
-        elif command == 'initialize':
-            new_pstatus = data.get("pstatus", {})
-            if not isinstance(new_pstatus, dict):
-                self.print_json("error", {"message": "Invalid pstatus format. Expected a JSON object."})
-                return
-            self.update_pstatus_except_player(new_pstatus)
-            self.initUi()
-        elif command == 'pstatus':
-            new_pstatus = data.get("pstatus", {})
-            if isinstance(new_pstatus, dict):
-                # 기존 pstatus의 'player' 값은 유지, 나머지만 업데이트
-                player_data = self.pstatus.get("player", {})
-                self.pstatus = {k: v for k, v in new_pstatus.items() if k != "player"}
-                self.pstatus["player"] = player_data
-            else:
-                self.print_json("error", {"message": "Invalid pstatus format. Expected a JSON object."})
-                return
-            if not isinstance(self.pstatus, dict):
-                self.print_json("error", {"message": "Invalid pstatus format. Expected a JSON object."})
-                return
-        elif command == 'playlist':
-            # playlist 전체 변경
-            playlist = data.get("playlist", [])
-            current_index = data.get("index", 0)
-            self.set_playlist(playlist, current_index)
-        elif command == 'next':
-            # next 명령, 인덱스가 있으면 해당 인덱스로 이동
-            next_index = data.get("index")
-            self.handle_next_command(next_index)
-
 
     def set_fullscreen(self, fullscreen):
         try:
@@ -371,7 +97,7 @@ class Player(QMainWindow):
                 self.playerA.set_hwnd(int(self.winId()))
             if hasattr(self, 'playerB') and self.playerB:
                 self.playerB.set_hwnd(int(self.winId()))
-            self.update_player_data(None)
+            update_player_data(self, None)
         except Exception as e:
             self.print_json("error", {"message": f"Error setting fullscreen: {e}"})
 
@@ -379,7 +105,6 @@ class Player(QMainWindow):
         try:
             # Set background color
             self.setStyleSheet(f"background-color: {color};")
-            self.print_json("message", {"background_color": color})
         except Exception as e:
             self.print_json("error", {"message": f"Error setting background color: {e}"})
 
@@ -390,7 +115,6 @@ class Player(QMainWindow):
                 self.print_json("error", {"message": "No logo path provided."})
                 return
             self.logo_path = os.path.normpath(logo_path.strip())
-            self.print_json("message", {"logo_path": self.logo_path})
         except Exception as e:
             self.print_json("error", {"message": f"Error setting logo: {e}"})
             
@@ -495,7 +219,7 @@ class Player(QMainWindow):
                 )
                 self.active_image_label.setVisible(True)
                 self.active_image_label.raise_()
-            self.update_player_data()
+            update_player_data(self)
         except Exception as e:
             self.print_json("error", {"message": f"Error showing image: {e}"})
 
@@ -507,7 +231,7 @@ class Player(QMainWindow):
             self.active_image_label.setVisible(False)
             self.next_image_label.setVisible(False)
             self.svg_widget.setVisible(False)
-            self.update_player_data()
+            update_player_data(self)
         except Exception as e:
             self.print_json("error", {"message": f"Error hiding image: {e}"})
 
@@ -527,137 +251,6 @@ class Player(QMainWindow):
             self.print_json("info", self.pstatus)
         except Exception as e:
             self.print_json("error", {"message": f"Error setting media: {e}"})
-
-    def swap_players(self):
-        # active/next 포인터 스왑 및 트랜지션
-        self.active_player, self.next_player = self.next_player, self.active_player
-        self.active_image_label, self.next_image_label = self.next_image_label, self.active_image_label
-        # 현재 재생중인 파일 정보를 pstatus['current']에 반영
-        playlist = self.pstatus.get('playlist', [])
-        if playlist and 0 <= self.playlist_index < len(playlist):
-            self.pstatus['current'] = playlist[self.playlist_index]
-            self.print_json("info", self.pstatus)
-        # 트랜지션(페이드 등) 예시
-        self.fade_transition(self.active_image_label, self.next_image_label)
-
-    def fade_transition(self, show_label, hide_label):
-        # 간단한 페이드 트랜지션 예시 (QPropertyAnimation 활용 가능)
-        show_label.setVisible(True)
-        hide_label.setVisible(False)
-        # 실제 구현 시 QGraphicsOpacityEffect 등으로 자연스럽게 처리
-
-    def preload_next_media(self, file):
-        """
-        다음 미디어를 next_player/next_image_label에 미리 로딩
-        file: dict, 최소한 'path' 필드 필요, 가능하면 'mimetype' 포함
-        """
-        path = file.get("path", "")
-        mimetype = file.get("mimetype", "")
-        ext = os.path.splitext(path)[1].lower()
-        is_image = False
-        is_video = False
-        is_audio = False
-        # mimetype 우선 판별
-        if mimetype:
-            if mimetype.startswith("image/"):
-                is_image = True
-            elif mimetype.startswith("video/"):
-                is_video = True
-            elif mimetype.startswith("audio/"):
-                is_audio = True
-        else:
-            # 확장자로 판별
-            if ext in [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".svg"]:
-                is_image = True
-            elif ext in [".mp4", ".avi", ".mov", ".mkv", ".wmv", ".webm"]:
-                is_video = True
-            elif ext in [".mp3", ".wav", ".aac", ".flac", ".ogg"]:
-                is_audio = True
-        if is_image:
-            pixmap = QPixmap(path)
-            self.next_image_label.setPixmap(pixmap)
-            self.next_image_label.setVisible(False)
-        elif is_video or is_audio:
-            media = self.next_player.get_instance().media_new(path)
-            self.next_player.set_media(media)
-            # 재생하지 않고 대기
-        else:
-            self.print_json("error", {"message": f"지원하지 않는 파일 형식: {path}"})
-
-    def handle_next_command(self, next_index=None):
-        playlist = self.pstatus.get('playlist', [])
-        if not playlist:
-            self.print_json("error", {"message": "플레이리스트가 비어있음"})
-            return
-        # next_index가 명시적으로 들어오면
-        if next_index is not None:
-            # next로 준비된 인덱스와 같으면 next 동작만 수행
-            if next_index == self.playlist_index + 1:
-                self.playlist_index = next_index
-                self.swap_players()
-                self.play_from_playlist(self.playlist_index)
-            else:
-                # 임의 인덱스면 해당 미디어를 미리 로딩 후 트랜지션
-                if next_index < 0 or next_index >= len(playlist):
-                    self.print_json("error", {"message": "잘못된 인덱스"})
-                    return
-                self.playlist_index = next_index
-                file = playlist[self.playlist_index]
-                self.preload_next_media(file)
-                self.swap_players()
-                self.play_from_playlist(self.playlist_index)
-        else:
-            # 기존 next 동작
-            self.playlist_index += 1
-            if self.playlist_index >= len(playlist):
-                self.print_json("info", {"message": "플레이리스트 끝"})
-                return
-            self.swap_players()
-            self.play_from_playlist(self.playlist_index)
-
-    def play_from_playlist(self, index=None):
-        playlist = self.pstatus.get('playlist', [])
-        if not playlist:
-            self.print_json("error", {"message": "플레이리스트가 비어있음"})
-            return
-        if index is not None:
-            self.playlist_index = index
-        if self.playlist_index < 0 or self.playlist_index >= len(playlist):
-            self.print_json("error", {"message": "잘못된 인덱스"})
-            return
-        file = playlist[self.playlist_index]
-        # 현재 재생중인 파일 정보를 pstatus['current']에 반영
-        self.pstatus['current'] = file
-        self.print_json("info", self.pstatus)
-        # 실제 재생
-        if self.is_image_file(file):
-            self.show_image(file['path'])
-        else:
-            self.set_media(file['path'])
-            self.active_player.play()
-        # 다음 미디어 미리 프리로드
-        self.preload_next_from_playlist()
-
-    def is_image_file(self, file):
-        mimetype = file.get("mimetype", "")
-        ext = os.path.splitext(file.get("path", ""))[1].lower()
-        if mimetype:
-            return mimetype.startswith("image/")
-        return ext in [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".svg"]
-
-    def set_playlist(self, playlist, current_index=0):
-        self.pstatus['playlist'] = playlist
-        self.playlist_index = current_index
-        self.preload_next_from_playlist()
-
-    def preload_next_from_playlist(self):
-        playlist = self.pstatus.get('playlist', [])
-        idx = self.playlist_index + 1
-        if playlist and idx < len(playlist):
-            self.next_file = playlist[idx]
-            self.preload_next_media(self.next_file)
-        else:
-            self.next_file = None
 
     def resizeEvent(self, event):
         # 로고 위치 조정 코드

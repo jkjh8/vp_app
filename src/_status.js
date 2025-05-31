@@ -1,5 +1,6 @@
 let pStatus = {
   playlistmode: false,
+  playlistindex: 0,
   repeat: 'none',
   nics: [],
   darkmode: false,
@@ -8,10 +9,11 @@ let pStatus = {
     name: '',
     type: ''
   },
+  playlistfile: '',
   playlist: [],
   device: {
-    audiocurrentdevice: '',
-    audiodevicelist: []
+    audiodevice: '',
+    audiodevices: []
   },
   logo: {
     show: false,
@@ -36,7 +38,7 @@ let pStatus = {
     is_image: false,
     image_path: null
   },
-  background: ''
+  background: 'black'
 }
 
 let _pythonProcess = null

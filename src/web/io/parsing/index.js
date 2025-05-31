@@ -49,6 +49,13 @@ const parsing = (data) => {
         setBackground(data.value)
         pStatus.background = data.value
         break
+      case 'repeat':
+        pStatus.repeat = data.value
+        require('@py').sendMessageToPython({
+          command: 'repeat',
+          mode: pStatus.repeat
+        })
+        break
       default:
         console.warn('Unknown data type:', data.type)
     }
