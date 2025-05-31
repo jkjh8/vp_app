@@ -83,8 +83,9 @@ def get_audio_devices(player):
                 dev = dev_info.next
         player.pstatus.setdefault('device', {})
         player.pstatus['device']['audiodevices'] = devices
+        player.print_json("event", {"event": "audio_devices", "devices": devices})
         player.pstatus['device']['audiodevice'] = player.playerA.audio_output_device_get() or "default"
-        player.print_json("info", player.pstatus)
+        player.print_json("event", {"event": "audio_device", "device": player.pstatus['device']['audiodevice']})
     except Exception as e:
         player.print_json("error", {"message": f"Error getting audio devices: {e}"})
 
@@ -100,14 +101,14 @@ def set_audio_device(player, device):
             return
         # 모든 플레이어에 오디오 디바이스 설정
         if hasattr(player, 'playerA') and player.playerA:
-            player.playerA.audio_output_device_set(device)
+            player.playerA.audio_output_device_set(None, device)
         if hasattr(player, 'playerB') and player.playerB:
-            player.playerB.audio_output_device_set(device)
+            player.playerB.audio_output_device_set(None, device)
         # 현재 오디오 디바이스 확인
         current_device = player.active_player.audio_output_device_get()
         if current_device == device:
             player.pstatus['device']['audiodevice'] = current_device
-            player.print_json("info", player.pstatus)
+            player.print_json("event", {"event": "audio_device", "device": current_device}) 
         else:
             player.print_json("error", {"message": f"Failed to set audio device to {device}."})
     except Exception as e:

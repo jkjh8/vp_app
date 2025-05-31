@@ -30,15 +30,15 @@ const getSetupfromDB = async () => {
         break
       case 'logo':
         pStatus.logo = {
-          show: setup.value.show || false,
-          file: setup.value.file || '',
-          width: setup.value.width || 0,
-          height: setup.value.height || 0,
-          x: setup.value.x || 0,
-          y: setup.value.y || 0
+          show: setup.show || false,
+          name: setup.name || '',
+          file: setup.file || '',
+          width: setup.width || 0,
+          height: setup.height || 0,
+          x: setup.x || 0,
+          y: setup.y || 0
         }
         break
-
       default:
         logger.warn(`Unknown setup type: ${setup.type}`)
     }

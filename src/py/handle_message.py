@@ -81,11 +81,16 @@ def handle_message(player, data):
         'speed': lambda: player.active_player.set_rate(data['speed']),
         'fullscreen': lambda: player.set_fullscreen(data['fullscreen']),
         'background_color': lambda: (player.set_background_color(data['color']), player.pstatus.__setitem__('background', data['color'])),
-        'logo': lambda: (player.set_logo(data['path'].strip()), player.pstatus.setdefault("logo", {})["path"] == os.path.normpath(data['path'].strip())),
-        'show_logo': lambda: (player.pstatus.setdefault("logo", {})["show"] == data['value'], player.show_logo(player.pstatus["logo"]["show"])),
-        'logo_size': lambda: (player.pstatus.setdefault("logo", {})["width"] == data['width'], player.pstatus.setdefault("logo", {})["height"] == data['height'], player.show_logo(player.pstatus["logo"].get("show", False))),
-        'get_audio_devices': lambda: player.get_audio_devices(),
-        'set_audio_device': lambda: player.set_audio_device(data.get("device", "")) if data.get("device", "") else player.print_json("error", {"message": "No audio device provided."}),
+        'logo': lambda: (
+            player.set_logo(data.get('file', '').strip()),
+        ),
+        'show_logo': lambda: (player.show_logo(data['show'])),
+        'logo_size': lambda: (
+            player.pstatus.setdefault("logo", {}).update({"width": data['width'], "height": data['height']}),
+            player.show_logo(player.pstatus["logo"].get("show", False))
+        ),
+        'get_audio_devices': lambda: get_audio_devices(player),
+        'set_audio_device': lambda: set_audio_device(player, data.get("device", "")) if data.get("device", "") else player.print_json("error", {"message": "No audio device provided."}),
         'initialize': lambda: (player.update_pstatus_except_player(data.get("pstatus", {})), player.initUi()) if isinstance(data.get("pstatus", {}), dict) else player.print_json("error", {"message": "Invalid pstatus format. Expected a JSON object."}),
         'pstatus': lambda: update_pstatus(player, data),
         'playlist': lambda: player.set_playlist(data.get("playlist", []), data.get("index", 0)),

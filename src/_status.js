@@ -16,6 +16,7 @@ let pStatus = {
     audiodevices: []
   },
   logo: {
+    name: '',
     show: false,
     file: '',
     width: 0,

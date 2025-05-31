@@ -109,4 +109,24 @@ router.get('/background/:color', async (req, res) => {
   }
 })
 
+router.put('/setaudiodevice', async (req, res) => {
+  try {
+    const { deviceId } = req.body
+    console.log('Setting audio device to:', deviceId)
+    if (!deviceId) {
+      return res.status(400).json({ error: 'Device ID is required' })
+    }
+    // Assuming there's a function to set the audio device
+    // setAudioDevice(deviceId)
+    require('@py').send({
+      command: 'set_audio_device',
+      device: deviceId
+    })
+    res.status(200).json({ message: `Audio device set to ${deviceId}` })
+  } catch (error) {
+    console.error('Error occurred while setting audio device:', error)
+    res.status(500).json({ error: 'Failed to set audio device' })
+  }
+})
+
 module.exports = router

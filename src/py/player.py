@@ -72,7 +72,7 @@ class Player(QMainWindow):
     def initUi(self):
         self.set_background_color(self.pstatus.get("background", "#ffffff"))
         self.set_fullscreen(self.pstatus.get("fullscreen", False))
-        self.set_logo(self.pstatus.get("logo", {}).get("path", ""))
+        self.set_logo(self.pstatus.get("logo", {}).get("file", ""))
         self.show_logo(self.pstatus.get("logo", {}).get("show", False))
 
     def initStdinThread(self):
@@ -111,16 +111,23 @@ class Player(QMainWindow):
     def set_logo(self, logo_path):
         try:
             # Set logo path
-            if not logo_path or logo_path == "":
-                self.print_json("error", {"message": "No logo path provided."})
-                return
-            self.logo_path = os.path.normpath(logo_path.strip())
+            self.pstatus["logo"]["file"] = logo_path.strip()
+            self.show_logo(True)
         except Exception as e:
             self.print_json("error", {"message": f"Error setting logo: {e}"})
             
     def show_logo(self, value):
+        # value가 None이거나 빈 문자열인 경우 False로 처리
+        if value is None or value == "":
+            value = False
         try:
-            logo_path = self.pstatus["logo"]["path"]
+            value = bool(value)
+            self.pstatus["logo"]["show"] = value
+            if not value:
+                self.logo_label.setVisible(False)
+                self.svg_widget.setVisible(False)
+                return
+            logo_path = self.pstatus["logo"].get("file", "")
             if not logo_path or not os.path.isfile(logo_path):
                 self.logo_label.setVisible(False)
                 self.svg_widget.setVisible(False)
@@ -131,19 +138,39 @@ class Player(QMainWindow):
             if ext == ".svg":
                 self.logo_label.setVisible(False)
                 self.svg_widget.load(logo_path)
-                self.svg_widget.setVisible(value)
+                self.svg_widget.setVisible(True)
                 self.svg_widget.raise_()
-                if width == 0 or height == 0:
+                if width == 0 and height == 0:
                     self.svg_widget.adjustSize()
                     self.svg_widget.move(
                         (self.width() - self.svg_widget.width()) // 2,
                         (self.height() - self.svg_widget.height()) // 2
                     )
-                else:
+                elif width and height:
+                    # 둘 다 값이 있으면 그대로 적용 (비율 유지 X)
                     self.svg_widget.resize(width, height)
                     self.svg_widget.move(
                         (self.width() - width) // 2,
                         (self.height() - height) // 2
+                    )
+                else:
+                    # 하나라도 값이 있으면 비율 유지
+                    orig_size = self.svg_widget.sizeHint()
+                    orig_w, orig_h = orig_size.width(), orig_size.height()
+                    if width:
+                        ratio = width / orig_w
+                        new_w = width
+                        new_h = int(orig_h * ratio)
+                    elif height:
+                        ratio = height / orig_h
+                        new_w = int(orig_w * ratio)
+                        new_h = height
+                    else:
+                        new_w, new_h = orig_w, orig_h
+                    self.svg_widget.resize(new_w, new_h)
+                    self.svg_widget.move(
+                        (self.width() - new_w) // 2,
+                        (self.height() - new_h) // 2
                     )
             else:
                 pixmap = QPixmap(logo_path)
@@ -152,26 +179,40 @@ class Player(QMainWindow):
                     self.svg_widget.setVisible(False)
                     return
                 self.svg_widget.setVisible(False)
-                self.logo_label.setPixmap(
-                    pixmap if width == 0 or height == 0 else pixmap.scaled(
-                        width, height, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                orig_w, orig_h = pixmap.width(), pixmap.height()
+                if width == 0 and height == 0:
+                    scaled_pixmap = pixmap
+                    new_w, new_h = orig_w, orig_h
+                elif width and height:
+                    # 둘 다 값이 있으면 그대로 적용 (비율 유지 X)
+                    scaled_pixmap = pixmap.scaled(
+                        width, height, Qt.IgnoreAspectRatio, Qt.SmoothTransformation
                     )
-                )
-                if width == 0 or height == 0:
-                    self.logo_label.resize(pixmap.width(), pixmap.height())
-                    self.logo_label.move(
-                        (self.width() - pixmap.width()) // 2,
-                        (self.height() - pixmap.height()) // 2
-                    )
+                    new_w, new_h = width, height
                 else:
-                    self.logo_label.resize(width, height)
-                    self.logo_label.move(
-                        (self.width() - width) // 2,
-                        (self.height() - height) // 2
+                    # 하나라도 값이 있으면 비율 유지
+                    if width:
+                        ratio = width / orig_w
+                        new_w = width
+                        new_h = int(orig_h * ratio)
+                    elif height:
+                        ratio = height / orig_h
+                        new_w = int(orig_w * ratio)
+                        new_h = height
+                    else:
+                        new_w, new_h = orig_w, orig_h
+                    scaled_pixmap = pixmap.scaled(
+                        new_w, new_h, Qt.KeepAspectRatio, Qt.SmoothTransformation
                     )
-                self.logo_label.setVisible(value)
+                self.logo_label.setPixmap(scaled_pixmap)
+                self.logo_label.resize(new_w, new_h)
+                self.logo_label.move(
+                    (self.width() - new_w) // 2,
+                    (self.height() - new_h) // 2
+                )
+                self.logo_label.setVisible(True)
                 self.logo_label.raise_()
-                self.print_json("info", self.pstatus)
+            self.pstatus["logo"]["show"] = value
         except Exception as e:
             self.print_json("error", {"message": f"Error showing logo: {e}"})
 
