@@ -1,5 +1,6 @@
 import os
 from PySide6.QtGui import QPixmap
+from PySide6.QtCore import QTimer
 
 def swap_players(player):
     """
@@ -126,8 +127,37 @@ def play_from_playlist(player, index=None):
     player.print_json("info", player.pstatus)
     # 실제 재생
     if is_image_file(file):
+        # 이미지 재생 시간 결정
+        duration = file.get('duration') or file.get('time') or player.pstatus.get('image_time', 5)
+        try:
+            duration = int(duration)
+        except Exception:
+            duration = 5
+        player.pstatus['player']['duration'] = duration * 1000  # ms 단위
+        player.pstatus['player']['time'] = 0
         player.show_image(file['path'])
+        # 이미지 타이머 시작 (1초마다 time 업데이트)
+        if hasattr(player, '_image_timer') and player._image_timer:
+            player._image_timer.stop()
+            player._image_timer.deleteLater()
+        player._image_timer = QTimer(player)
+        player._image_timer.setInterval(500)  # 0.5초(500ms)로 변경
+        def update_image_time():
+            player.pstatus['player']['time'] += 500
+            if player.pstatus['player']['time'] >= player.pstatus['player']['duration']:
+                player._image_timer.stop()
+                player._image_timer.deleteLater()
+                player._image_timer = None
+                # 다음 트랙으로 자동 이동
+                if hasattr(player, 'handle_next_command'):
+                    player.handle_next_command()
+            # 0.5초마다 상태 업데이트
+            from audio_device import update_player_data
+            update_player_data(player)
+        player._image_timer.timeout.connect(update_image_time)
+        player._image_timer.start()
     else:
+        # 비디오/오디오 파일은 기존 방식
         player.set_media(file['path'])
         player.active_player.play()
     # 다음 미디어 미리 프리로드

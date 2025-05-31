@@ -7,6 +7,9 @@ const getSetupfromDB = async () => {
   const setups = await db.status.find()
   setups.forEach((setup) => {
     switch (setup.type) {
+      case 'image_time':
+        pStatus.image_time = setup.time
+        break
       case 'background':
         pStatus.background = setup.value
         break

@@ -273,6 +273,9 @@ class Player(QMainWindow):
             self.next_image_label.setVisible(False)
             self.svg_widget.setVisible(False)
             update_player_data(self)
+            # 이미지 숨김 후 로고 show 값이 True면 로고 다시 표시
+            if self.pstatus.get('logo', {}).get('show', False):
+                self.show_logo(True)
         except Exception as e:
             self.print_json("error", {"message": f"Error hiding image: {e}"})
 

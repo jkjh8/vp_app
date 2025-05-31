@@ -51,6 +51,11 @@ def update_pstatus(player, data):
     else:
         player.print_json("error", {"message": "Invalid pstatus format. Expected a JSON object."})
 
+def set_image_time(player, data):
+    player.pstatus.setdefault('image_time', 10)
+    player.pstatus['image_time'] = data.get('time', 10)
+    player.print_json("message", f"Image display time set to {player.pstatus['image_time']} seconds")
+
 # --- 메인 메시지 핸들러 ---
 def handle_message(player, data):
     player.receive_udp_data = data.strip()
@@ -93,11 +98,12 @@ def handle_message(player, data):
         'set_audio_device': lambda: set_audio_device(player, data.get("device", "")) if data.get("device", "") else player.print_json("error", {"message": "No audio device provided."}),
         'initialize': lambda: (player.update_pstatus_except_player(data.get("pstatus", {})), player.initUi()) if isinstance(data.get("pstatus", {}), dict) else player.print_json("error", {"message": "Invalid pstatus format. Expected a JSON object."}),
         'pstatus': lambda: update_pstatus(player, data),
-        'playlist': lambda: player.set_playlist(data.get("playlist", []), data.get("index", 0)),
+        'image_time': lambda: set_image_time(player, data),
         'next': lambda: player.handle_next_command(data.get("index")),
         'repeat': lambda: handle_repeat(player, data),
         'get_devices': lambda: get_audio_devices(player),
         'set_device': lambda: set_audio_device(player, data.get("device", "")) if data.get("device", "") else player.print_json("error", {"message": "No audio device provided."}),
+        'image_time': lambda: set_image_time(player, data),
     }
 
     func = dispatch.get(command)

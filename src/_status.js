@@ -3,7 +3,7 @@ let pStatus = {
   playlistindex: 0,
   repeat: 'none',
   nics: [],
-  darkmode: false,
+  image_time: 10,
   current: {
     id: '',
     name: '',

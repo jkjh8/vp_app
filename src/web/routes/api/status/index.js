@@ -45,4 +45,32 @@ router.post('/update', async (req, res) => {
   }
 })
 
+router.get('/image_time/:time', async (req, res) => {
+  const { time } = req.params
+  if (!time) {
+    return res.status(400).json({ error: 'Time parameter is required' })
+  }
+
+  try {
+    // Fetch the image for the given time
+    const image = await db.status.findOne({ type: 'image_time', time })
+    if (!image) {
+      return res
+        .status(404)
+        .json({ error: 'Image not found for the specified time' })
+    }
+    pStatus.image_time = image.value
+    require('@py').send({ command: 'image_time', time })
+
+    res.json({
+      success: true,
+      message: `Image fetched for time "${time}"`,
+      pStatus
+    })
+  } catch (error) {
+    logger.error(`Error fetching image for time "${time}":`, error)
+    res.status(500).json({ error: 'Internal Server Error, ' + error.message })
+  }
+})
+
 module.exports = router
