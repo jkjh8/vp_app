@@ -10,6 +10,9 @@ const {
   setLogoSize,
   setBackground
 } = require('@api/player/index.js')
+const { pStatus } = require('@src/_status.js')
+const db = require('@db')
+
 const router = express.Router()
 
 // id가 없을때는 그냥 플레이명령, id가 있으면 db에서 검색해서 파일위치를 함께 전송
@@ -58,6 +61,12 @@ router.get('/fullscreen/:fullscreen', async (req, res) => {
   try {
     const { fullscreen } = req.params
     setFullscreen(fullscreen === 'true')
+    // update the status in the database
+    await db.status.update(
+      { type: 'fullscreen' },
+      { $set: { fullscreen: fullscreen === 'true' } },
+      { upsert: true }
+    )
     res.status(200).json({ message: 'Fullscreen mode set successfully' })
   } catch (error) {
     console.error('Error occurred while setting fullscreen mode:', error)
@@ -122,6 +131,15 @@ router.put('/setaudiodevice', async (req, res) => {
       command: 'set_audio_device',
       device: deviceId
     })
+    // db update
+    console.log(
+      await db.status.update(
+        { type: 'audiodevice' },
+        { $set: { audiodevice: deviceId } },
+        { upsert: true }
+      )
+    )
+    pStatus.device.audiodevice = deviceId
     res.status(200).json({ message: `Audio device set to ${deviceId}` })
   } catch (error) {
     console.error('Error occurred while setting audio device:', error)

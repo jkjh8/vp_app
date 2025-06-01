@@ -5,6 +5,7 @@ const logger = require('@logger')
 const getSetupfromDB = async () => {
   // db에서 setup 정보를 가져와서 pStatus에 업데이트하고 반환
   const setups = await db.status.find()
+
   setups.forEach((setup) => {
     switch (setup.type) {
       case 'image_time':
@@ -42,8 +43,15 @@ const getSetupfromDB = async () => {
           y: setup.y || 0
         }
         break
+      case 'audiodevice':
+        console.log('Setting audio device from DB:', setup.audiodevice)
+        pStatus.device.audiodevice = setup.audiodevice
+        break
+      case 'fullscreen':
+        pStatus.player.fullscreen = setup.fullscreen || false
+        break
       default:
-        logger.warn(`Unknown setup type: ${setup.type}`)
+        logger.warn(`Unknown setup type: ${JSON.stringify(setup)}`)
     }
   })
   return pStatus

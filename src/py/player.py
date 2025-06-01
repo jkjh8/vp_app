@@ -4,7 +4,7 @@ import win32process, win32con
 import json
 import vlc
 from PySide6.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget
-from PySide6.QtCore import Qt, QThread, Signal, Slot
+from PySide6.QtCore import Qt, QThread, Signal, Slot, QTimer
 from PySide6.QtGui import QPixmap, QIcon
 from PySide6.QtSvgWidgets import QSvgWidget
 
@@ -68,6 +68,7 @@ class Player(QMainWindow):
             self.print_json("error", {"message": f"우선순위 설정 실패: {e}"})
 
         self.next_file = None
+        self.pending_logo_request = False  # 로고 표시 요청 플래그 추가
 
     def initUi(self):
         self.set_background_color(self.pstatus.get("background", "#ffffff"))
@@ -97,9 +98,30 @@ class Player(QMainWindow):
                 self.playerA.set_hwnd(int(self.winId()))
             if hasattr(self, 'playerB') and self.playerB:
                 self.playerB.set_hwnd(int(self.winId()))
+              # fullscreen 전환 후 로고와 이미지 위치 재조정을 위해 resizeEvent 호출
+            # QTimer를 사용해서 화면 전환이 완료된 후 위치 조정
+            QTimer.singleShot(100, self._adjust_widgets_position)
+            
             update_player_data(self, None)
         except Exception as e:
             self.print_json("error", {"message": f"Error setting fullscreen: {e}"})
+
+    def _adjust_widgets_position(self):
+        """로고와 이미지 위젯의 위치를 조정하는 헬퍼 메소드"""
+        try:
+            # 현재 표시되는 로고가 있으면 위치 재조정
+            if self.pstatus.get('logo', {}).get('show', False):
+                logo_path = self.pstatus["logo"].get("file", "")
+                if logo_path and os.path.isfile(logo_path):
+                    self.show_logo(True)  # 로고를 다시 표시하여 위치 재조정
+            
+            # 현재 표시되는 이미지가 있으면 위치 재조정
+            is_image = self.pstatus['current'].get("is_image", False)
+            image_path = self.pstatus['current'].get("path", "")
+            if is_image and image_path:
+                self.show_image(image_path)  # 이미지를 다시 표시하여 위치 재조정
+        except Exception as e:
+            self.print_json("error", {"message": f"Error adjusting widgets position: {e}"})
 
     def set_background_color(self, color):
         try:
@@ -123,23 +145,29 @@ class Player(QMainWindow):
         try:
             value = bool(value)
             self.pstatus["logo"]["show"] = value
-            if not value:
-                self.logo_label.setVisible(False)
-                self.svg_widget.setVisible(False)
+
+            # 이미지 송출 중일 경우 로고 표시 요청을 큐에 저장
+            is_image = self.pstatus['current'].get("is_image", False)
+            if is_image and self.active_image_label.isVisible():
+                self.pending_logo_request = value
                 return
+
+            # 로고 표시 로직
             logo_path = self.pstatus["logo"].get("file", "")
-            if not logo_path or not os.path.isfile(logo_path):
+            if not value or not logo_path or not os.path.isfile(logo_path):
                 self.logo_label.setVisible(False)
                 self.svg_widget.setVisible(False)
                 return
+
             ext = os.path.splitext(logo_path)[1].lower()
             width = self.pstatus["logo"].get("width", 0)
             height = self.pstatus["logo"].get("height", 0)
+
             if ext == ".svg":
                 self.logo_label.setVisible(False)
                 self.svg_widget.load(logo_path)
                 self.svg_widget.setVisible(True)
-                self.svg_widget.raise_()
+                self.svg_widget.raise_()  # 로고를 최상위 레이어로 이동
                 if width == 0 and height == 0:
                     self.svg_widget.adjustSize()
                     self.svg_widget.move(
@@ -147,14 +175,12 @@ class Player(QMainWindow):
                         (self.height() - self.svg_widget.height()) // 2
                     )
                 elif width and height:
-                    # 둘 다 값이 있으면 그대로 적용 (비율 유지 X)
                     self.svg_widget.resize(width, height)
                     self.svg_widget.move(
                         (self.width() - width) // 2,
                         (self.height() - height) // 2
                     )
                 else:
-                    # 하나라도 값이 있으면 비율 유지
                     orig_size = self.svg_widget.sizeHint()
                     orig_w, orig_h = orig_size.width(), orig_size.height()
                     if width:
@@ -178,19 +204,18 @@ class Player(QMainWindow):
                     self.logo_label.setVisible(False)
                     self.svg_widget.setVisible(False)
                     return
+
                 self.svg_widget.setVisible(False)
                 orig_w, orig_h = pixmap.width(), pixmap.height()
                 if width == 0 and height == 0:
                     scaled_pixmap = pixmap
                     new_w, new_h = orig_w, orig_h
                 elif width and height:
-                    # 둘 다 값이 있으면 그대로 적용 (비율 유지 X)
                     scaled_pixmap = pixmap.scaled(
                         width, height, Qt.IgnoreAspectRatio, Qt.SmoothTransformation
                     )
                     new_w, new_h = width, height
                 else:
-                    # 하나라도 값이 있으면 비율 유지
                     if width:
                         ratio = width / orig_w
                         new_w = width
@@ -204,6 +229,7 @@ class Player(QMainWindow):
                     scaled_pixmap = pixmap.scaled(
                         new_w, new_h, Qt.KeepAspectRatio, Qt.SmoothTransformation
                     )
+
                 self.logo_label.setPixmap(scaled_pixmap)
                 self.logo_label.resize(new_w, new_h)
                 self.logo_label.move(
@@ -211,8 +237,8 @@ class Player(QMainWindow):
                     (self.height() - new_h) // 2
                 )
                 self.logo_label.setVisible(True)
-                self.logo_label.raise_()
-            self.pstatus["logo"]["show"] = value
+                self.logo_label.raise_()  # 로고를 최상위 레이어로 이동
+
         except Exception as e:
             self.print_json("error", {"message": f"Error showing logo: {e}"})
 
@@ -273,9 +299,11 @@ class Player(QMainWindow):
             self.next_image_label.setVisible(False)
             self.svg_widget.setVisible(False)
             update_player_data(self)
-            # 이미지 숨김 후 로고 show 값이 True면 로고 다시 표시
-            if self.pstatus.get('logo', {}).get('show', False):
-                self.show_logo(True)
+
+            # 이미지 숨김 후 로고 표시 요청이 있으면 처리
+            if self.pending_logo_request:
+                self.show_logo(self.pending_logo_request)
+                self.pending_logo_request = False
         except Exception as e:
             self.print_json("error", {"message": f"Error hiding image: {e}"})
 
@@ -297,8 +325,86 @@ class Player(QMainWindow):
             self.print_json("error", {"message": f"Error setting media: {e}"})
 
     def resizeEvent(self, event):
-        # 로고 위치 조정 코드
-        # ...existing code...
+        # 로고 위치 및 크기 조정
+        if self.pstatus.get('logo', {}).get('show', False):
+            logo_path = self.pstatus["logo"].get("file", "")
+            if logo_path and os.path.isfile(logo_path):
+                ext = os.path.splitext(logo_path)[1].lower()
+                width = self.pstatus["logo"].get("width", 0)
+                height = self.pstatus["logo"].get("height", 0)
+                
+                if ext == ".svg":
+                    if self.svg_widget.isVisible():
+                        if width == 0 and height == 0:
+                            # 원본 크기 유지
+                            self.svg_widget.adjustSize()
+                            self.svg_widget.move(
+                                (self.width() - self.svg_widget.width()) // 2,
+                                (self.height() - self.svg_widget.height()) // 2
+                            )
+                        elif width and height:
+                            # 지정된 크기로 설정
+                            self.svg_widget.resize(width, height)
+                            self.svg_widget.move(
+                                (self.width() - width) // 2,
+                                (self.height() - height) // 2
+                            )
+                        else:
+                            # 비율 유지하며 크기 조정
+                            orig_size = self.svg_widget.sizeHint()
+                            orig_w, orig_h = orig_size.width(), orig_size.height()
+                            if orig_w > 0 and orig_h > 0:
+                                if width:
+                                    ratio = width / orig_w
+                                    new_w = width
+                                    new_h = int(orig_h * ratio)
+                                elif height:
+                                    ratio = height / orig_h
+                                    new_w = int(orig_w * ratio)
+                                    new_h = height
+                                else:
+                                    new_w, new_h = orig_w, orig_h
+                                self.svg_widget.resize(new_w, new_h)
+                                self.svg_widget.move(
+                                    (self.width() - new_w) // 2,
+                                    (self.height() - new_h) // 2
+                                )
+                else:
+                    if self.logo_label.isVisible() and self.logo_label.pixmap():
+                        pixmap = QPixmap(logo_path)
+                        if not pixmap.isNull():
+                            orig_w, orig_h = pixmap.width(), pixmap.height()
+                            if width == 0 and height == 0:
+                                # 원본 크기 유지
+                                scaled_pixmap = pixmap
+                                new_w, new_h = orig_w, orig_h
+                            elif width and height:
+                                # 지정된 크기로 설정 (비율 무시)
+                                scaled_pixmap = pixmap.scaled(
+                                    width, height, Qt.IgnoreAspectRatio, Qt.SmoothTransformation
+                                )
+                                new_w, new_h = width, height
+                            else:
+                                # 비율 유지하며 크기 조정
+                                if width:
+                                    ratio = width / orig_w
+                                    new_w = width
+                                    new_h = int(orig_h * ratio)
+                                elif height:
+                                    ratio = height / orig_h
+                                    new_w = int(orig_w * ratio)
+                                    new_h = height
+                                else:
+                                    new_w, new_h = orig_w, orig_h
+                                scaled_pixmap = pixmap.scaled(
+                                    new_w, new_h, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                                )
+                            self.logo_label.setPixmap(scaled_pixmap)
+                            self.logo_label.resize(new_w, new_h)
+                            self.logo_label.move(
+                                (self.width() - new_w) // 2,
+                                (self.height() - new_h) // 2
+                            )
         
         # 이미지가 표시 중이면 크기 재조정
         # player_data에 is_image, image_path 키가 없을 수 있으니 get으로 안전하게 접근

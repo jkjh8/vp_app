@@ -25,6 +25,7 @@ def initDoublePlayers(player):
     # 이벤트 핸들러 등록
     init_events_double(player)
     # 오디오 디바이스 가져오기 및 설정
+    set_audio_device(player, player.pstatus.get('device', {}).get('audiodevice', 'default'))
     get_audio_devices(player)
     
 def init_events_double(player):
