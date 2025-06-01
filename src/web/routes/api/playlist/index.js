@@ -6,7 +6,7 @@ const logger = require('@logger')
 
 router.get('/', async (req, res) => {
   try {
-    const playlists = await db.playlist.find()
+    const playlists = await db.playlists.find()
     res.json(playlists)
   } catch (error) {
     logger.error('Error fetching playlists:', error)
@@ -26,7 +26,8 @@ router.post('/', async (req, res) => {
       description: description || '',
       tracks: []
     }
-    const result = await db.playlist.insert(newPlaylist)
+
+    const result = await db.playlists.insert(newPlaylist)
     logger.info(`Playlist "${name}" added successfully`)
     res.status(201).json(result)
   } catch (error) {
@@ -35,7 +36,7 @@ router.post('/', async (req, res) => {
   }
 })
 
-router.put('/:id', async (req, res) => {
+router.put('/', async (req, res) => {
   const { id } = req.params
   const { name, description } = req.body
 
@@ -53,7 +54,7 @@ router.put('/:id', async (req, res) => {
       description: description || ''
     }
 
-    const numReplaced = await db.playlist.update(
+    const numReplaced = await db.playlists.update(
       { _id: id },
       { $set: updateData },
       { returnUpdatedDocs: true }
@@ -64,7 +65,7 @@ router.put('/:id', async (req, res) => {
     }
 
     // 업데이트된 플레이리스트 조회
-    const updatedPlaylist = await db.playlist.findOne({ _id: id })
+    const updatedPlaylist = await db.playlists.findOne({ _id: id })
 
     logger.info(`Playlist "${name}" with ID "${id}" updated successfully`)
     res.status(200).json(updatedPlaylist)
@@ -83,7 +84,7 @@ router.put('/tracks', async (req, res) => {
   }
 
   try {
-    const updatedPlaylist = await db.playlist.update(
+    const updatedPlaylist = await db.playlists.update(
       { _id: id },
       { $set: { tracks } }
     )
@@ -106,7 +107,7 @@ router.delete('/:id', async (req, res) => {
   }
 
   try {
-    const result = await db.playlist.remove({ _id: id })
+    const result = await db.playlists.remove({ _id: id })
     if (result.deletedCount === 0) {
       return res.status(404).json({ error: 'Playlist not found' })
     } else {
