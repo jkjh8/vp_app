@@ -20,7 +20,7 @@ const {
   existsLogoPath,
   deleteTmpFiles
 } = require('@api/files/folders')
-const { start } = require('repl')
+const { fnGetPlaylists } = require('@api/playlists')
 
 // ES5에서는 __dirname, __filename 바로 사용 가능
 
@@ -62,6 +62,8 @@ app.whenReady().then(async function () {
   existsLogoPath() // 로고 디렉토리 확인 및 생성
   //데이터 베이스 초기화
   await getSetupfromDB()
+  // 플레이리스트 초기화
+  await fnGetPlaylists()
   // http 서버 시작
   const io = initIOServer(3000)
   // startPythonProcess()
