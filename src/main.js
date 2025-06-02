@@ -8,10 +8,13 @@ const app = electron.app
 const BrowserWindow = electron.BrowserWindow
 const path = require('path')
 
+const userDataPath = app.getPath('userData') // 사용자 데이터 경로
+const { initDb } = require('@db')
+initDb(userDataPath) // 데이터베이스 초기화
+
 const { startPythonProcess } = require('@py')
 const { stopPythonProcess } = require('@py')
 const logger = require('@logger')
-require('@db')
 const { getSetupfromDB } = require('@api/status')
 const { initIOServer } = require('@web/io')
 const {

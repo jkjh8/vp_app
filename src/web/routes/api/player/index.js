@@ -11,7 +11,7 @@ const {
   setBackground
 } = require('@api/player/index.js')
 const { pStatus } = require('@src/_status.js')
-const db = require('@db')
+const { dbStatus } = require('@db')
 
 const router = express.Router()
 
@@ -62,7 +62,7 @@ router.get('/fullscreen/:fullscreen', async (req, res) => {
     const { fullscreen } = req.params
     setFullscreen(fullscreen === 'true')
     // update the status in the database
-    await db.status.update(
+    await dbStatus.update(
       { type: 'fullscreen' },
       { $set: { fullscreen: fullscreen === 'true' } },
       { upsert: true }
@@ -133,7 +133,7 @@ router.put('/setaudiodevice', async (req, res) => {
     })
     // db update
     console.log(
-      await db.status.update(
+      await dbStatus.update(
         { type: 'audiodevice' },
         { $set: { audiodevice: deviceId } },
         { upsert: true }

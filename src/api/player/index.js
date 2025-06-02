@@ -1,11 +1,12 @@
 const db = require('@db')
 const logger = require('@logger')
 const pStatus = require('@src/_status')
+const { dbStatus, dbFiles } = require('@db')
 
 const playid = async (id) => {
   logger.info(`Received play request with ID: ${id}`)
 
-  const file = await db.files.findOne({ number: Number(id) })
+  const file = await dbFiles.findOne({ number: Number(id) })
   if (!file) {
     throw new Error('Player not found')
   }
@@ -73,6 +74,14 @@ const setBackground = (background) => {
   })
 }
 
+const setImageTime = (time) => {
+  logger.info(`Setting image time to: ${time}`)
+  require('@py').send({
+    command: 'image_time',
+    time
+  })
+}
+
 module.exports = {
   playid,
   play,
@@ -83,5 +92,6 @@ module.exports = {
   setLogo,
   showLogo,
   setLogoSize,
-  setBackground
+  setBackground,
+  setImageTime
 }

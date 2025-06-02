@@ -1,15 +1,15 @@
 const { pStatus } = require('../../_status')
-const db = require('@db')
+const { dbPlaylists, dbFiles } = require('@db')
 
-const fnGetPlaylists = async (req, res) => {
+const fnGetPlaylists = async () => {
   try {
-    let playlists = await db.playlists.find()
+    let playlists = await dbPlaylists.find()
     // playlists의 각 항목의 tracks 필드에서 uuid를 files에서 조회해서 대체하기
     for (const playlist of playlists) {
       if (playlist.tracks && playlist.tracks.length > 0) {
         playlist.tracks = await Promise.all(
           playlist.tracks.map(async (track) => {
-            const file = await db.files.findOne({ uuid: track })
+            const file = await dbFiles.findOne({ uuid: track })
             if (file) {
               return file
             }
@@ -19,8 +19,8 @@ const fnGetPlaylists = async (req, res) => {
         playlist.tracks = []
       }
     }
-    // playlists를 pStatus에 저장
-    pStatus.value.playlists = playlists
+    // pStatus에 직접 저장 (value 없이)
+    pStatus.playlists = playlists
     return playlists
   } catch (error) {
     console.error('Error fetching playlists:', error)
@@ -28,6 +28,30 @@ const fnGetPlaylists = async (req, res) => {
   }
 }
 
+const fnAddPlaylists = async (args) => {
+  if (!args.playlistId) return new Error('playlistId is required')
+  return await dbPlaylists.insert({ ...args, tracks: [] })
+}
+
+const fnEditPlaylists = async (args) => {
+  const { id, ...updateData } = args
+  if (!id) return new Error('Playlist ID is required')
+  return await dbPlaylists.update({ _id: id }, { $set: updateData })
+}
+
+const fnAddTracksToPlaylist = async (playlistId, tracks) => {
+  if (!playlistId || !Array.isArray(tracks)) {
+    throw new Error('Playlist ID and tracks are required')
+  }
+  return await dbPlaylists.update(
+    { _id: playlistId },
+    { $addToSet: { tracks: { $each: tracks } } }
+  )
+}
+
 module.exports = {
-  fnGetPlaylists
+  fnGetPlaylists,
+  fnAddPlaylists,
+  fnEditPlaylists,
+  fnAddTracksToPlaylist
 }

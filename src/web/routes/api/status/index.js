@@ -1,9 +1,9 @@
 const express = require('express')
 const router = express.Router()
 const { getSetupfromDB } = require('@src/api/status')
-const db = require('@db')
 const { pStatus } = require('@src/_status.js')
 const logger = require('@logger')
+const { dbStatus } = require('@db')
 
 router.use('/logo', require('./logo'))
 
@@ -27,7 +27,7 @@ router.post('/update', async (req, res) => {
     pStatus[key] = value
 
     // Save the updated status to the database
-    await db.status.update({ type: key }, { $set: { value } }, { upsert: true })
+    await dbStatus.update({ type: key }, { $set: { value } }, { upsert: true })
     logger.info(`Status updated for key "${key}" with value: ${value}`)
     // update player background if key is 'background'
     if (key === 'background') {
@@ -53,7 +53,7 @@ router.get('/image_time/:time', async (req, res) => {
 
   try {
     // Fetch the image for the given time
-    const image = await db.status.findOne({ type: 'image_time', time })
+    const image = await dbStatus.findOne({ type: 'image_time', time })
     if (!image) {
       return res
         .status(404)

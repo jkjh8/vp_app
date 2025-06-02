@@ -10,6 +10,7 @@ let pStatus = {
     type: ''
   },
   playlistfile: '',
+  playlists: [],
   playlist: [],
   device: {
     audiodevice: '',

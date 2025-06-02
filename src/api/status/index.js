@@ -1,10 +1,10 @@
-const db = require('@db')
 const { pStatus } = require('@src/_status.js')
 const logger = require('@logger')
+const { dbStatus } = require('@db')
 
 const getSetupfromDB = async () => {
   // db에서 setup 정보를 가져와서 pStatus에 업데이트하고 반환
-  const setups = await db.status.find()
+  const setups = await dbStatus.find()
 
   setups.forEach((setup) => {
     switch (setup.type) {

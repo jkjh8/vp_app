@@ -7,7 +7,8 @@ const path = require('path')
 const fs = require('fs')
 const { getTmpPath, getMediaPath } = require('@api/files/folders')
 const { generateThumbnail, resizeImage } = require('@api/files/thumbnail')
-const db = require('@db')
+//db 모듈 가져오기
+const { dbFiles } = require('@db')
 
 const setupFFmpeg = () => {
   let ffmpegExecutablePath = ffmpegPath.replace('app.asar', 'app.asar.unpacked')
@@ -37,8 +38,20 @@ const getMetadata = (filePath) => {
 
 // 파일 등록 시 중복되지 않는 숫자(순번) 생성 함수
 const getNextFileNumber = async () => {
-  const lastFiles = await db.files.find({}).sort({ number: -1 }).limit(1)
-  return lastFiles.length > 0 ? lastFiles[0].number + 1 : 1
+  const { db } = require('@db')
+  try {
+    // cfind()를 사용하여 cursor 반환
+    const lastFiles = await db.files
+      .find({})
+      .sort({ number: -1 })
+      .limit(1)
+      .exec()
+
+    return lastFiles.length > 0 ? lastFiles[0].number + 1 : 1
+  } catch (error) {
+    logger.error('Error getting next file number:', error)
+    throw error
+  }
 }
 
 // number만 미리 등록(예약)
@@ -46,7 +59,7 @@ const reserveFileNumber = async () => {
   const number = await getNextFileNumber()
   // 임시로 uuid만 넣고 number만 등록
   const uuid = uuidv4()
-  await db.files.insert({
+  await dbFiles.insert({
     uuid,
     number,
     reserved: true,
@@ -110,7 +123,7 @@ const postProcessFiles = async (files) => {
       }
 
       // 예약된 number와 uuid로 파일 정보 업데이트
-      await db.files.update(
+      await dbFiles.update(
         { uuid, number },
         {
           $set: {
@@ -142,7 +155,7 @@ const insertFileWithUniqueNumber = async (fileData) => {
   while (retry < 5) {
     const number = await getNextFileNumber()
     try {
-      await db.files.insert({ ...fileData, number })
+      await dbFiles.insert({ ...fileData, number })
       return
     } catch (err) {
       if (err.errorType === 'uniqueViolated') {

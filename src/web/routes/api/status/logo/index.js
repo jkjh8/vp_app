@@ -5,7 +5,7 @@ const logger = require('@logger')
 const multer = require('multer')
 const { getLogoPath } = require('@api/files/folders')
 const { pStatus } = require('../../../../../_status')
-const db = require('@db')
+const { dbStatus } = require('@db')
 
 const router = express.Router()
 const upload = multer({
@@ -74,7 +74,7 @@ router.get('/sel/:filename', async (req, res) => {
     }
     pStatus.logo.file = filePath
     // update db
-    await db.status.update(
+    await dbStatus.update(
       { type: 'logo' },
       {
         $set: { file: pStatus.logo.file, name: pStatus.logo.name }
@@ -102,7 +102,7 @@ router.get('/show/:show', (req, res) => {
     const showLogo = show === 'true'
     pStatus.logo.show = showLogo
     // update db
-    db.status.update(
+    dbStatus.update(
       { type: 'logo' },
       {
         $set: { show: pStatus.logo.show }
@@ -134,7 +134,7 @@ router.put('/size', async (req, res) => {
     pStatus.logo.height = height
 
     // update db
-    await db.status.update(
+    await dbStatus.update(
       { type: 'logo' },
       {
         $set: { width: pStatus.logo.width, height: pStatus.logo.height }

@@ -4,8 +4,9 @@ const logger = require('@logger')
 const { postProcessFiles } = require('@api/files')
 const path = require('path')
 const fs = require('fs')
-const db = require('@db')
 const { getTmpPath, getMediaPath } = require('@api/files/folders')
+const { dbFiles } = require('@db')
+
 const router = express.Router()
 
 const upload = multer({
@@ -22,7 +23,7 @@ const upload = multer({
 // 파일 목록 조회
 router.get('/', async (req, res) => {
   try {
-    const files = await db.files.find({})
+    const files = await dbFiles.find({})
     res.json(files)
   } catch (error) {
     logger.error(`Error fetching files: ${error}`)
@@ -52,7 +53,7 @@ router.post('/', upload.any(), async (req, res) => {
 router.get('/thumbnail/:uuid', async (req, res) => {
   const { uuid } = req.params
   try {
-    const file = await db.files.findOne({ uuid })
+    const file = await dbFiles.findOne({ uuid })
     if (!file) {
       return res.status(404).json({ error: 'File not found' })
     }
@@ -68,7 +69,7 @@ router.get('/thumbnail/:uuid', async (req, res) => {
 router.delete('/:uuid', async (req, res) => {
   const { uuid } = req.params
   try {
-    const file = await db.files.findOne({ uuid })
+    const file = await dbFiles.findOne({ uuid })
     if (!file) {
       return res.status(404).json({ error: 'File not found' })
     }
@@ -76,7 +77,7 @@ router.delete('/:uuid', async (req, res) => {
     const fileDir = path.join(getMediaPath(), uuid)
     fs.rmdirSync(fileDir, { recursive: true, force: true }) // This will delete the directory and its contents
     // Delete the file record from the database
-    await db.files.remove({ uuid })
+    await dbFiles.remove({ uuid })
 
     res.status(200).json({ message: 'File deleted successfully' })
   } catch (error) {
@@ -89,7 +90,7 @@ router.delete('/:uuid', async (req, res) => {
 router.get('/download/:uuid', async (req, res) => {
   const { uuid } = req.params
   try {
-    const file = await db.files.findOne({ uuid })
+    const file = await dbFiles.findOne({ uuid })
     if (!file) {
       return res.status(404).json({ error: 'File not found' })
     }
