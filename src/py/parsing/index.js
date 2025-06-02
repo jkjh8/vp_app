@@ -17,16 +17,17 @@ function handleUnknownMessage(message) {
   logger.warn(`Unknown message type from Python:${message.data}`)
 }
 
-function handleEndReached(message) {
+function handleEndReached(data) {
+  pStatus.playlistIndex = data.playlist_index ?? 0
   switch (pStatus.repeat) {
     case 'none':
-      if (pStatus.playlistmode) {
+      if (pStatus.playlistMode) {
         if (
           pStatus.playlist.length > 0 &&
-          message.data.playlist_index < pStatus.playlist.length - 1
+          data.data.playlist_index < pStatus.playlist.length - 1
         ) {
           logger.info(
-            `End of track reached(none), moving to next track in playlist. Current index: ${message.data.playlist_index}`
+            `End of track reached(none), moving to next track in playlist. Current index: ${data.data.playlist_index}`
           )
           require('@py').send({ command: 'next' })
         } else {
@@ -38,7 +39,7 @@ function handleEndReached(message) {
       }
       break
     case 'all':
-      if (pStatus.playlistmode) {
+      if (pStatus.playlistMode) {
         logger.info('End of playlist reached, stopping playback.')
         require('@py').send({ command: 'next' })
       } else {
@@ -60,29 +61,26 @@ function handleEndReached(message) {
 }
 
 function handleEventMessage(message) {
+  const { getIO } = require('@web/io')
+  const io = getIO()
   switch (message.data.event) {
     case 'audio_devices': {
       pStatus.device.audiodevices = message.data.devices
-      const io1 = require('@web/io')
-      if (io1 && io1.emit) io1.emit('pStatus', pStatus)
+      io.emit('pStatus', pStatus)
       break
     }
     case 'audio_device': {
       pStatus.device.audiodevice = message.data.device
-      const io2 = require('@web/io')
-      if (io2 && io2.emit) io2.emit('pStatus', pStatus)
+      io.emit('pStatus', pStatus)
       break
     }
-    case 'end_reached':
-      handleEndReached(message)
-      break
     case 'media_changed':
-      pStatus.playlistindex = message.data.playlist_index
-      if (pStatus.playlistmode && pStatus.playlistindex >= 0) {
+      pStatus.playlistIndex = message.data.playlist_index
+      if (pStatus.playlistMode && pStatus.playlistIndex >= 0) {
         logger.info(
-          `Media changed, updating current track index to ${pStatus.playlistindex}`
+          `Media changed, updating current track index to ${pStatus.playlistIndex}`
         )
-        pStatus.current = pStatus.playlist[pStatus.playlistindex]
+        pStatus.current = pStatus.playlist[pStatus.playlistIndex]
       } else {
         logger.info('Media changed, resetting current track index.')
         pStatus.current = null
@@ -109,6 +107,16 @@ const parsing = (data) => {
           break
         case 'event':
           handleEventMessage(message)
+          break
+        case 'end_reached':
+          handleEndReached(message.data)
+          break
+        case 'player_data':
+          pStatus.player = { ...pStatus.player, ...message.data }
+          const { io } = require('@web/io')
+          if (io && io.emit) {
+            io.emit('pStatus', pStatus)
+          }
           break
         case 'message':
           if (typeof message.data !== 'string') {

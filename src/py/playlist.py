@@ -9,14 +9,13 @@ def swap_players(player):
     player.active_player, player.next_player = player.next_player, player.active_player
     player.active_image_label, player.next_image_label = player.next_image_label, player.active_image_label
     # 현재 재생중인 파일 정보를 pstatus['current']에 반영
-    playlist = player.pstatus.get('playlist', [])
-    if playlist and 0 <= player.pstatus['playlistindex'] < len(playlist):
-        player.pstatus['current'] = playlist[player.pstatus['playlistindex']]
+    if player.playlist and 0 <= player.playlist_track_index < len(player.playlist):
+        player.pstatus['current'] = player.playlist[player.playlist_track_index]
         player.print_json("info", player.pstatus)
     # 다음 미디어가 이미지면 바로 송출
-    next_idx = (player.pstatus['playlistindex'] + 1) % len(playlist) if playlist else None
-    if next_idx is not None and 0 <= next_idx < len(playlist):
-        next_file = playlist[next_idx]
+    next_idx = (player.playlist_track_index + 1) % len(player.playlist) if player.playlist else None
+    if next_idx is not None and 0 <= next_idx < len(player.playlist):
+        next_file = player.playlist[next_idx]
         if is_image_file(next_file) and not is_video_file(next_file):
             player.show_image(next_file.get('path', ''))
     fade_transition(player, player.active_image_label, player.next_image_label)
@@ -27,13 +26,12 @@ def swap_players(player):
         if hasattr(media_obj, "get_mrl") and media_obj.get_mrl():
             media = media_obj.get_mrl()
     image_path = ""
-    playlist = player.pstatus.get('playlist', [])
-    if playlist and 0 <= player.pstatus['playlistindex'] < len(playlist):
-        image_path = playlist[player.pstatus['playlistindex']].get('path', '')
+    if player.playlist and 0 <= player.playlist_track_index < len(player.playlist):
+        image_path = player.playlist[player.playlist_track_index].get('path', '')
     player.print_json("event", {
         "event": "media_changed",
         "media": media,
-        "playlist_index": player.pstatus['playlistindex'],
+        "playlist_index": player.playlist_track_index,
         "image_path": image_path
     })
 
@@ -81,47 +79,45 @@ def preload_next_media(player, file):
         player.print_json("error", {"message": f"지원하지 않는 파일 형식: {path}"})
 
 def handle_next_command(player, next_index=None):
-    playlist = player.pstatus.get('playlist', [])
-    if not playlist:
+    if not player.playlist:
         player.print_json("error", {"message": "플레이리스트가 비어있음"})
         return
-    playlist_len = len(playlist)
+    playlist_len = len(player.playlist)
     # next_index가 명시적으로 들어오면
     if next_index is not None:
         # next로 준비된 인덱스와 같으면 next 동작만 수행
-        if next_index == player.pstatus['playlistindex'] + 1 or (player.pstatus['playlistindex'] == playlist_len - 1 and next_index == 0):
-            player.pstatus['playlistindex'] = next_index % playlist_len
+        if next_index == player.playlist_track_index + 1 or (player.playlist_track_index == playlist_len - 1 and next_index == 0):
+            player.playlist_track_index = next_index % playlist_len
             swap_players(player)
-            play_from_playlist(player, player.pstatus['playlistindex'])
+            play_from_playlist(player, player.playlist_track_index)
         else:
             # 임의 인덱스면 해당 미디어를 미리 로딩 후 트랜지션
             if next_index < 0 or next_index >= playlist_len:
                 player.print_json("error", {"message": "잘못된 인덱스"})
                 return
-            player.pstatus['playlistindex'] = next_index
-            file = playlist[player.pstatus['playlistindex']]
+            player.playlist_track_index = next_index
+            file = player.playlist[player.playlist_track_index]
             preload_next_media(player, file)
             swap_players(player)
-            play_from_playlist(player, player.pstatus['playlistindex'])
+            play_from_playlist(player, player.playlist_track_index)
     else:
         # 기존 next 동작
-        player.pstatus['playlistindex'] += 1
-        if player.pstatus['playlistindex'] >= playlist_len:
-            player.pstatus['playlistindex'] = 0  # 마지막이면 첫번째로
+        player.playlist_track_index += 1
+        if player.playlist_track_index >= playlist_len:
+            player.playlist_track_index = 0  # 마지막이면 첫번째로
         swap_players(player)
-        play_from_playlist(player, player.pstatus['playlistindex'])
+        play_from_playlist(player, player.playlist_track_index)
 
 def play_from_playlist(player, index=None):
-    playlist = player.pstatus.get('playlist', [])
-    if not playlist:
+    if not player.playlist:
         player.print_json("error", {"message": "플레이리스트가 비어있음"})
         return
     if index is not None:
-        player.pstatus['playlistindex'] = index
-    if player.pstatus['playlistindex'] < 0 or player.pstatus['playlistindex'] >= len(playlist):
+        player.playlist_track_index = index
+    if player.playlist_track_index < 0 or player.playlist_track_index >= len(player.playlist):
         player.print_json("error", {"message": "잘못된 인덱스"})
         return
-    file = playlist[player.pstatus['playlistindex']]
+    file = player.playlist[player.playlist_track_index]
     # 현재 재생중인 파일 정보를 pstatus['current']에 반영
     player.pstatus['current'] = file
     player.print_json("info", player.pstatus)
@@ -179,12 +175,12 @@ def is_video_file(file):
 
 def set_playlist(player, playlist, current_index=0):
     player.pstatus['playlist'] = playlist
-    player.pstatus['playlistindex'] = current_index
+    player.playlist_track_index = current_index
     preload_next_from_playlist(player)
 
 def preload_next_from_playlist(player):
     playlist = player.pstatus.get('playlist', [])
-    idx = player.pstatus['playlistindex'] + 1
+    idx = player.playlist_track_index + 1
     if playlist and idx < len(playlist):
         player.next_file = playlist[idx]
         preload_next_media(player, player.next_file)

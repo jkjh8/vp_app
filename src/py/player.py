@@ -20,12 +20,15 @@ class Player(QMainWindow):
     def __init__(self, pstatus=None):
         super().__init__()
         self.pstatus = pstatus if pstatus else {}
-        self.playlistmode = self.pstatus.get('playlistmode', False)
+        self.playlist_mode = self.pstatus.get('playlistMode', False)
         self.setWindowTitle("VP")
         self.setGeometry(100, 100, 800, 600)
         self.setWindowIcon(QIcon("icon.png"))
         # 오디오 디바이스
         self.audioDevices = []
+        # 플레이 리스트
+        self.playlist = []
+        self.playlist_track_index = 0
         # 더블버퍼 플레이어 및 이미지 레이블
         self.playerA = None
         self.playerB = None

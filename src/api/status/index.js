@@ -14,8 +14,8 @@ const getSetupfromDB = async () => {
       case 'background':
         pStatus.background = setup.value
         break
-      case 'playlistmode':
-        pStatus.playlistmode = setup.value
+      case 'playlistMode':
+        pStatus.playlistMode = setup.value
         break
       case 'repeat':
         pStatus.repeat = setup.value

@@ -1,6 +1,6 @@
 let pStatus = {
-  playlistmode: false,
-  playlistindex: 0,
+  playlistMode: false,
+  playlistIndex: 0,
   repeat: 'none',
   nics: [],
   image_time: 10,

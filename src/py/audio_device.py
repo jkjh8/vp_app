@@ -59,7 +59,7 @@ def on_end_reached(player, event):
         try:
             update_player_data(player, event)
             # Notify Node.js that playback has ended; Node.js will handle next action
-            player.print_json("event", {"event": "end_reached", "playlist_index": player.pstatus['playlistindex']})
+            player.print_json("end_reached", {"playlist_index": player.playlist_track_index})
         except Exception as e:
             player.print_json("error", {"message": f"Exception in on_end_reached: {e}"})
 
@@ -82,10 +82,7 @@ def get_audio_devices(player):
                     "name": dev_info.description.decode() if dev_info.description else "기본 장치"
                 })
                 dev = dev_info.next
-        player.pstatus.setdefault('device', {})
-        player.pstatus['device']['audiodevices'] = devices
         player.print_json("event", {"event": "audio_devices", "devices": devices})
-        player.pstatus['device']['audiodevice'] = player.playerA.audio_output_device_get() or "default"
         player.print_json("event", {"event": "audio_device", "device": player.pstatus['device']['audiodevice']})
     except Exception as e:
         player.print_json("error", {"message": f"Error getting audio devices: {e}"})
@@ -108,7 +105,6 @@ def set_audio_device(player, device):
         # 현재 오디오 디바이스 확인
         current_device = player.active_player.audio_output_device_get()
         if current_device == device:
-            player.pstatus['device']['audiodevice'] = current_device
             player.print_json("event", {"event": "audio_device", "device": current_device}) 
         else:
             player.print_json("error", {"message": f"Failed to set audio device to {device}."})
@@ -117,24 +113,28 @@ def set_audio_device(player, device):
 
 
 def update_player_data(player, event=None):
-        # 이벤트가 있으면 어떤 플레이어에서 발생했는지 확인
-        active_player = getattr(event, "_which_player", None) if event is not None else player.active_player
-        # 현재 활성 플레이어만 처리
-        if active_player != player.active_player:
-            return
-        event_type = getattr(event, "type", "manual") if event is not None else "manual"
-        player.pstatus.setdefault('player', {})
-        player.pstatus['player']['event'] = str(event_type)
-        media = player.active_player.get_media()
-        if media is not None:
-            player.pstatus['player']['filename'] = media.get_mrl()
-        else:
-            player.pstatus['player']['filename'] = ""
-        player.pstatus['player']['duration'] = player.active_player.get_length()
-        player.pstatus['player']['time'] = player.active_player.get_time()
-        player.pstatus['player']['position'] = player.active_player.get_position()
-        player.pstatus['player']['playing'] = player.active_player.is_playing()
-        player.pstatus['player']['volume'] = player.active_player.audio_get_volume()
-        player.pstatus['player']['speed'] = player.active_player.get_rate()
-        player.pstatus['player']['fullscreen'] = player.active_player.get_fullscreen()
-        player.print_json("info", player.pstatus)
+    # 이벤트가 있으면 어떤 플레이어에서 발생했는지 확인
+    active_player = getattr(event, "_which_player", None) if event is not None else player.active_player
+    # 현재 활성 플레이어만 처리
+    if active_player != player.active_player:
+        return
+    event_type = getattr(event, "type", "manual") if event is not None else "manual"
+    
+    # media 객체 확인
+    media = player.active_player.get_media()
+    if not media:
+        player.print_json("error", {"message": "No media loaded in active player."})
+        return
+
+    # player 데이터 업데이트
+    player.print_json("player_data", {
+        "event": str(event_type),
+        "filename": media.get_mrl() if media else "No media",
+        "duration": player.active_player.get_length(),
+        "time": player.active_player.get_time(),
+        "position": player.active_player.get_position(),
+        "playing": player.active_player.is_playing(),
+        "volume": player.active_player.audio_get_volume(),
+        "speed": player.active_player.get_rate(),
+        "fullscreen": player.active_player.get_fullscreen()
+    })

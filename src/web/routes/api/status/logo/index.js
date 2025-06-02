@@ -4,8 +4,8 @@ const fs = require('fs')
 const logger = require('@logger')
 const multer = require('multer')
 const { getLogoPath } = require('@api/files/folders')
-const { pStatus } = require('../../../../../_status')
-const { dbStatus } = require('@db')
+const { pStatus } = require('@src/_status')
+const { setLogo, showLogo, setLogoSize } = require('@api/player/index.js')
 
 const router = express.Router()
 const upload = multer({
@@ -19,10 +19,9 @@ const upload = multer({
   })
 })
 
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const files = fs.readdirSync(getLogoPath())
-    res.json(files)
+    res.json(await fs.promises.readdir(getLogoPath()))
   } catch (error) {
     logger.error(`Error reading logo directory: ${error}`)
     res.status(500).json({ error: 'Internal Server Error' })
@@ -32,9 +31,6 @@ router.get('/', (req, res) => {
 router.post('/', upload.any(), async (req, res) => {
   try {
     const files = req.files
-    if (!files || files.length === 0) {
-      return res.status(400).json({ error: 'No files uploaded' })
-    }
     res.status(200).json({
       message: 'Logo file uploaded successfully',
       files: files
@@ -46,9 +42,14 @@ router.post('/', upload.any(), async (req, res) => {
 })
 
 router.get('/img/:filename', (req, res) => {
-  const { filename } = req.params
-  const filePath = path.join(getLogoPath(), decodeURIComponent(filename))
-  res.sendFile(filePath)
+  try {
+    const { filename } = req.params
+    const filePath = path.join(getLogoPath(), decodeURIComponent(filename))
+    res.sendFile(filePath)
+  } catch (error) {
+    logger.error(`Error fetching logo image: ${error}`)
+    res.status(500).json({ error: 'Internal Server Error' })
+  }
 })
 
 router.delete('/:filename', (req, res) => {
@@ -66,28 +67,8 @@ router.delete('/:filename', (req, res) => {
 
 router.get('/sel/:filename', async (req, res) => {
   try {
-    const { filename } = req.params
-    pStatus.logo.name = decodeURIComponent(filename)
-    const filePath = path.join(getLogoPath(), pStatus.logo.name)
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'Logo file not found' })
-    }
-    pStatus.logo.file = filePath
-    // update db
-    await dbStatus.update(
-      { type: 'logo' },
-      {
-        $set: { file: pStatus.logo.file, name: pStatus.logo.name }
-      },
-      { upsert: true }
-    )
-
-    require('@py').send({
-      command: 'logo',
-      file: pStatus.logo.file
-    })
     res.json({
-      message: 'Logo file selected successfully',
+      message: await setLogo(decodeURIComponent(req.params.filename)),
       pStatus
     })
   } catch (error) {
@@ -96,26 +77,10 @@ router.get('/sel/:filename', async (req, res) => {
   }
 })
 
-router.get('/show/:show', (req, res) => {
+router.get('/show/:show', async (req, res) => {
   try {
-    const { show } = req.params
-    const showLogo = show === 'true'
-    pStatus.logo.show = showLogo
-    // update db
-    dbStatus.update(
-      { type: 'logo' },
-      {
-        $set: { show: pStatus.logo.show }
-      },
-      { upsert: true }
-    )
-    console.log(pStatus.logo.show)
-    require('@py').send({
-      command: 'show_logo',
-      show: pStatus.logo.show
-    })
     res.json({
-      message: `Logo visibility set to ${showLogo}`,
+      message: await showLogo(req.params.show === 'true'),
       pStatus
     })
   } catch (error) {
@@ -126,28 +91,8 @@ router.get('/show/:show', (req, res) => {
 
 router.put('/size', async (req, res) => {
   try {
-    const { width, height } = req.body
-    if (typeof width !== 'number' || typeof height !== 'number') {
-      return res.status(400).json({ error: 'Invalid width or height' })
-    }
-    pStatus.logo.width = width
-    pStatus.logo.height = height
-
-    // update db
-    await dbStatus.update(
-      { type: 'logo' },
-      {
-        $set: { width: pStatus.logo.width, height: pStatus.logo.height }
-      },
-      { upsert: true }
-    )
-    require('@py').send({
-      command: 'logo_size',
-      width: pStatus.logo.width,
-      height: pStatus.logo.height
-    })
     res.json({
-      message: 'Logo size updated successfully',
+      message: await setLogoSize(req.body.height, req.body.width),
       pStatus
     })
   } catch (error) {

@@ -29,10 +29,6 @@ router.post('/update', async (req, res) => {
     // Save the updated status to the database
     await dbStatus.update({ type: key }, { $set: { value } }, { upsert: true })
     logger.info(`Status updated for key "${key}" with value: ${value}`)
-    // update player background if key is 'background'
-    if (key === 'background') {
-      require('@py').send({ command: 'background_color', color: value })
-    }
 
     res.json({
       success: true,

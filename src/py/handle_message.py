@@ -104,6 +104,9 @@ def handle_message(player, data):
         'get_devices': lambda: get_audio_devices(player),
         'set_device': lambda: set_audio_device(player, data.get("device", "")) if data.get("device", "") else player.print_json("error", {"message": "No audio device provided."}),
         'image_time': lambda: set_image_time(player, data),
+        'playlist': lambda: setattr(player, 'playlist', data.get("playlist", [])),
+        'playlist_track_index': lambda: setattr(player, 'playlist_track_index', data.get("index", 0)),
+        'playlist_mode': lambda: setattr(player, 'playlist_mode', data.get("value", False)),
     }
 
     func = dispatch.get(command)
