@@ -6,7 +6,23 @@ const logger = require('@logger')
 
 router.get('/', async (req, res) => {
   try {
-    const playlists = await db.playlists.find()
+    let playlists = await db.playlists.find()
+    // playlists의 각 항목의 tracks 필드에서 uuid를 files에서 조회해서 대체하기
+    for (const playlist of playlists) {
+      if (playlist.tracks && playlist.tracks.length > 0) {
+        playlist.tracks = await Promise.all(
+          playlist.tracks.map(async (track) => {
+            const file = await db.files.findOne({ uuid: track })
+            if (file) {
+              return file
+            }
+          })
+        )
+      } else {
+        playlist.tracks = []
+      }
+    }
+    // playlists를 pStatus에 저장
     res.json(playlists)
   } catch (error) {
     logger.error('Error fetching playlists:', error)
@@ -15,13 +31,14 @@ router.get('/', async (req, res) => {
 })
 
 router.post('/', async (req, res) => {
-  const { name, description } = req.body
+  const { playlistId, name, description } = req.body
   if (!name) {
     return res.status(400).json({ error: 'Name is required' })
   }
 
   try {
     const newPlaylist = {
+      playlistId,
       name,
       description: description || '',
       tracks: []
@@ -37,27 +54,17 @@ router.post('/', async (req, res) => {
 })
 
 router.put('/', async (req, res) => {
-  const { id } = req.params
-  const { name, description } = req.body
+  const { id, ...args } = req.body
+  console.log(args)
 
   if (!id) {
     return res.status(400).json({ error: 'Playlist ID is required' })
   }
 
-  if (!name) {
-    return res.status(400).json({ error: 'Name is required' })
-  }
-
   try {
-    const updateData = {
-      name,
-      description: description || ''
-    }
-
     const numReplaced = await db.playlists.update(
       { _id: id },
-      { $set: updateData },
-      { returnUpdatedDocs: true }
+      { $set: { ...args } }
     )
 
     if (numReplaced === 0) {
@@ -67,7 +74,9 @@ router.put('/', async (req, res) => {
     // 업데이트된 플레이리스트 조회
     const updatedPlaylist = await db.playlists.findOne({ _id: id })
 
-    logger.info(`Playlist "${name}" with ID "${id}" updated successfully`)
+    logger.info(
+      `Playlist "${updatedPlaylist.name}" with ID "${id}" updated successfully`
+    )
     res.status(200).json(updatedPlaylist)
   } catch (error) {
     logger.error('Error updating playlist:', error)
