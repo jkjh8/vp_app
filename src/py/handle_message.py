@@ -1,6 +1,7 @@
 import json
 import os
 from player_instance import get_audio_devices, set_audio_device
+from playlist import set_playlist, set_playlist_mode, set_playlist_index
 
 # --- 개별 명령 처리 함수들 ---
 def handle_set(player, data):
@@ -91,23 +92,20 @@ def handle_message(player, data):
         'hide_image': lambda: player.hide_image(),
         
         # logo and image handling
-        'logo': lambda: (
-            player.set_logo(data.get('file', '').strip()),
-        ),
-        'show_logo': lambda: (player.show_logo(data['show'])),
+        'logo': lambda: player.set_logo(data.get('file', '').strip()),
+        'show_logo': lambda: player.show_logo(data.get('show', False)),
         'logo_size': lambda: (
-            player.pstatus.setdefault("logo", {}).update({"width": data['width'], "height": data['height']}),
+            player.pstatus.setdefault("logo", {}).update({"width": data.get('width', 0), "height": data.get('height', 0)}),
             player.show_logo(player.pstatus["logo"].get("show", False))
         ),
-        #playlist commands
-        'playlist': lambda: setattr(player, 'playlist', data.get("playlist", [])),
-        'playlist_track_index': lambda: setattr(player, 'playlist_track_index', data.get("index", 0)),
-        'playlist_mode': lambda: setattr(player, 'playlist_mode', data.get("value", False)),
+        # playlist commands
+        'playlist': lambda: set_playlist(player, data.get("playlist", {}), data.get("playlistIndex", 0)),
+        'playlist_track_index': lambda: set_playlist_index(player, data.get("index", 0)),
+        'playlist_mode': lambda: set_playlist_mode(player, data.get("value", False)),
         'image_time': lambda: set_image_time(player, data),
         'next': lambda: player.handle_next_command(data.get("index")),
         # status
-        'initialize': lambda: (player.update_pstatus_except_player(data.get("pstatus", {})), player.initUi()) if isinstance(data.get("pstatus", {}), dict) else player.print_json("error", {"message": "Invalid pstatus format. Expected a JSON object."}),
-        'background_color': lambda: (player.set_background_color(data['color']), player.pstatus.__setitem__('background', data['color'])),
+        'background_color': lambda: (player.set_background_color(data.get('color', '#ffffff')), player.pstatus.__setitem__('background', data.get('color', '#ffffff'))),
         'pstatus': lambda: update_pstatus(player, data),
     }
 

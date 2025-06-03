@@ -3,11 +3,8 @@ const logger = require('@logger')
 const { pStatus } = require('@src/_status')
 const { dbStatus, dbFiles } = require('@db')
 const { getLogoPath } = require('@api/files/folders')
-
-const sendPlayerCommand = (command, data) => {
-  logger.info(`Sending command to player: ${command}`, data)
-  require('@py').send({ command, ...data })
-}
+const { setPlaylistMode } = require('@api/playlists')
+const { sendPlayerCommand, sendMessageToClient } = require('@api')
 
 const playid = async (id) => {
   logger.info(`Received play request with ID: ${id}`)
@@ -16,9 +13,13 @@ const playid = async (id) => {
     throw new Error('Player not found')
   }
   pStatus.current = file
-  pStatus.playlistMode = false
   sendPlayerCommand('playid', { file: file })
+  setPlaylistMode(false)
   return `Playing file: ${file.path}`
+}
+
+const playlistPlay = async (playlistId, trackIndex) => {
+  // playlistId와 trackIndex가 유효한지 확인
 }
 
 const play = () => {
@@ -50,16 +51,18 @@ const setFullscreen = async (fullscreen) => {
 }
 
 const setLogo = async (logo) => {
-  logger.info(`Setting logo to: ${logo}`)
+  logger.info(`Setting logo to: ${logo} at path: ${filePath}`)
   const filePath = path.join(getLogoPath(), logo)
-
-  pStatus.logo.name = logo
   pStatus.logo.file = filePath
+  pStatus.logo.name = logo
   await dbStatus.update(
     { type: 'logo' },
     { $set: { file: filePath, name: logo } },
     { upsert: true }
   )
+  sendMessageToClient('pStatus', {
+    logo: pStatus.logo
+  })
   sendPlayerCommand('logo', { file: filePath })
   return `Logo set to: ${logo}`
 }
@@ -68,6 +71,7 @@ const showLogo = async (show) => {
   logger.info(`Setting logo visibility to: ${show}`)
   pStatus.logo.show = show
   await dbStatus.update({ type: 'logo' }, { $set: { show } }, { upsert: true })
+  sendMessageToClient('pStatus', { logo: pStatus.logo })
   sendPlayerCommand('show_logo', { show })
   return `Logo visibility set to: ${show}`
 }
@@ -81,6 +85,9 @@ const setLogoSize = async (h, w) => {
     { $set: { height: h, width: w } },
     { upsert: true }
   )
+  sendMessageToClient('pStatus', {
+    logo: pStatus.logo
+  })
   sendPlayerCommand('logo_size', {
     height: h,
     width: w
@@ -94,8 +101,21 @@ const setBackground = async (background) => {
 }
 
 const setAudioDevice = async (deviceId) => {
-  logger.info(`Setting audio device to: ${deviceId}`)
+  if (!deviceId) {
+    logger.warn('Received invalid audiodevice message from Python')
+    return
+  }
+  pStatus.device.audiodevice = deviceId
+  await dbStatus.update(
+    { type: 'audiodevice' },
+    { $set: { audiodevice: deviceId } },
+    { upsert: true }
+  )
+  sendMessageToClient('pStatus', {
+    device: pStatus.device
+  })
   sendPlayerCommand('set_audio_device', { device: deviceId })
+  logger.info(`Setting audio device to: ${deviceId}`)
   return `Audio device set to: ${deviceId}`
 }
 

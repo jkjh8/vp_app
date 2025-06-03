@@ -2,6 +2,46 @@ import os
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import QTimer
 
+def set_playlist_mode(player, mode = False):
+    """
+    플레이리스트 모드를 설정합니다.
+    """
+    if mode == 'true':
+        mode = True
+    player.pstatus['playlist_mode'] = mode
+    player.print_json("playlist_mode", {"mode": mode})
+
+def set_playlist(player, playlist, current_index=0):
+    """
+    플레이리스트를 설정하고 첫 번째 파일을 미리 로드합니다.
+    """
+    player.pstatus['playlist'] = playlist
+    player.pstatus['tracks'] = playlist.get('tracks', [])
+    player.playlist_track_index = current_index
+    player.print_json("playlist_set", {
+        "playlist": player.pstatus['playlist'],
+        "current_index": player.playlist_track_index
+    })
+
+def set_playlist_index(player, index):
+    """
+    플레이리스트의 현재 인덱스를 설정합니다.
+    """
+    if not player.pstatus['tracks']:
+        player.print_json("error", {"message": "플레이리스트가 비어있음"})
+        return
+
+    if index < 0 or index >= len(player.pstatus['tracks']):
+        player.print_json("error", {"message": "잘못된 인덱스"})
+        return
+
+    player.playlist_track_index = index
+    player.print_json("playlist_index_set", {
+        "index": index,
+    })
+
+    play_from_playlist(player, index)
+
 def swap_players(player):
     """
     active/next 플레이어와 이미지 레이블을 스왑하고 트랜지션을 수행합니다.
@@ -10,14 +50,14 @@ def swap_players(player):
     player.active_image_label, player.next_image_label = player.next_image_label, player.active_image_label
 
     # 현재 재생 중인 파일 정보를 pstatus['current']에 반영
-    if player.playlist and 0 <= player.playlist_track_index < len(player.playlist):
-        player.pstatus['current'] = player.playlist[player.playlist_track_index]
+    if player.tracks and 0 <= player.playlist_track_index < len(player.tracks):
+        player.pstatus['current'] = player.tracks[player.playlist_track_index]
         player.print_json("info", player.pstatus)
 
     # 다음 미디어가 이미지인 경우 바로 송출
-    next_idx = (player.playlist_track_index + 1) % len(player.playlist) if player.playlist else None
-    if next_idx is not None and 0 <= next_idx < len(player.playlist):
-        next_file = player.playlist[next_idx]
+    next_idx = (player.playlist_track_index + 1) % len(player.tracks) if player.tracks else None
+    if next_idx is not None and 0 <= next_idx < len(player.tracks):
+        next_file = player.tracks[next_idx]
         if is_image_file(next_file) and not is_video_file(next_file):
             player.show_image(next_file.get('path', ''))
 
@@ -33,8 +73,8 @@ def swap_players(player):
 
     # 현재 이미지 경로를 설정
     image_path = ""
-    if player.playlist and 0 <= player.playlist_track_index < len(player.playlist):
-        image_path = player.playlist[player.playlist_track_index].get('path', '')
+    if player.tracks and 0 <= player.playlist_track_index < len(player.tracks):
+        image_path = player.tracks[player.playlist_track_index].get('path', '')
     player.print_json("media_changed", {
         "media": media,
         "playlist_index": player.playlist_track_index,
@@ -79,11 +119,11 @@ def handle_next_command(player, next_index=None):
     """
     다음 트랙으로 이동하거나 특정 인덱스로 이동합니다.
     """
-    if not player.playlist:
+    if not player.tracks:
         player.print_json("error", {"message": "플레이리스트가 비어있음"})
         return
 
-    playlist_len = len(player.playlist)
+    playlist_len = len(player.tracks)
 
     if next_index is not None:
         # 특정 인덱스로 이동
@@ -96,7 +136,7 @@ def handle_next_command(player, next_index=None):
                 player.print_json("error", {"message": "잘못된 인덱스"})
                 return
             player.playlist_track_index = next_index
-            file = player.playlist[player.playlist_track_index]
+            file = player.tracks[player.playlist_track_index]
             preload_next_media(player, file)
             swap_players(player)
             play_from_playlist(player, player.playlist_track_index)
@@ -112,18 +152,18 @@ def play_from_playlist(player, index=None):
     """
     플레이리스트에서 특정 인덱스의 파일을 재생합니다.
     """
-    if not player.playlist:
+    if not player.tracks:
         player.print_json("error", {"message": "플레이리스트가 비어있음"})
         return
 
     if index is not None:
         player.playlist_track_index = index
 
-    if player.playlist_track_index < 0 or player.playlist_track_index >= len(player.playlist):
+    if player.playlist_track_index < 0 or player.playlist_track_index >= len(player.tracks):
         player.print_json("error", {"message": "잘못된 인덱스"})
         return
 
-    file = player.playlist[player.playlist_track_index]
+    file = player.tracks[player.playlist_track_index]
     player.pstatus['current'] = file
     player.print_json("info", player.pstatus)
 

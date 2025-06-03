@@ -44,11 +44,14 @@ const getSetupfromDB = async () => {
         }
         break
       case 'audiodevice':
-        console.log('Setting audio device from DB:', setup.audiodevice)
         pStatus.device.audiodevice = setup.audiodevice
         break
       case 'fullscreen':
         pStatus.player.fullscreen = setup.fullscreen || false
+        break
+      case 'playlist':
+        pStatus.playlist = setup.playlist || {}
+        pStatus.playlistIndex = setup.playlistIndex || 0
         break
       default:
         logger.warn(`Unknown setup type: ${JSON.stringify(setup)}`)

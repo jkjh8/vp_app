@@ -1,5 +1,6 @@
-const { pStatus } = require('../../_status')
+const { pStatus } = require('@src/_status')
 const { dbPlaylists, dbFiles } = require('@db')
+const { sendPlayerCommand, sendMessageToClient } = require('@api')
 
 const fnGetPlaylists = async () => {
   try {
@@ -49,9 +50,56 @@ const fnAddTracksToPlaylist = async (playlistId, tracks) => {
   )
 }
 
+const setPlaylist = async (playlistId) => {
+  if (!playlistId) {
+    throw new Error('Playlist ID is required')
+  }
+  const playlist = await dbPlaylists.findOne({ playlistId })
+  pStatus.playlist = playlist.tracks || []
+  pStatus.playlistIndex = playlistId
+  pStatus.tracks = playlist.tracks || []
+  sendPlayerCommand('playlist', {
+    playlist: pStatus.playlist,
+    playlistIndex: pStatus.playlistIndex
+  })
+  return `Playlist set to: ${playlist.name}`
+}
+
+const setPlaylistIndex = async (index) => {
+  if (index === undefined || index === null) {
+    throw new Error('Index is required')
+  }
+  if (typeof index !== 'number') {
+    throw new Error('Index must be a number')
+  }
+  sendPlayerCommand('playlist_track_index', { index })
+  return `Playlist index set to: ${index}`
+}
+
+const setPlaylistMode = async (mode = false) => {
+  if (mode === undefined || mode === null) {
+    throw new Error('Mode is required')
+  }
+  if (
+    mode === 1 ||
+    mode === '1' ||
+    mode === 'true' ||
+    mode === 'True' ||
+    mode === 'TRUE' ||
+    mode === true
+  ) {
+    mode = true
+  }
+  sendPlayerCommand('playlist_mode', { value: mode })
+  return `Playlist mode set to: ${mode}`
+}
+
 module.exports = {
   fnGetPlaylists,
   fnAddPlaylists,
   fnEditPlaylists,
-  fnAddTracksToPlaylist
+  fnAddTracksToPlaylist,
+  setPlaylist,
+  setPlaylistMode,
+  setPlaylistIndex
 }

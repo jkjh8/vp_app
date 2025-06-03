@@ -10,8 +10,8 @@ let pStatus = {
     type: ''
   },
   playlistfile: '',
-  playlists: [],
-  playlist: [],
+  playlist: {},
+  tracks: [],
   device: {
     audiodevice: '',
     audiodevices: []

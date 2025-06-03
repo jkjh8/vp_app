@@ -1,10 +1,7 @@
 let { pStatus } = require('@src/_status.js')
 const logger = require('@logger')
 const { dbStatus } = require('@db')
-const { sendMessageToClient } = require('@web/io')
-const { sendPlayerCommand } = require('@api/player')
-const db = require('../../db')
-const { log } = require('electron-builder')
+const { sendMessageToClient, sendPlayerCommand } = require('@api')
 
 function handleInfoMessage(data) {
   pStatus = { ...pStatus, ...data }
@@ -117,29 +114,13 @@ const parsing = async (data) => {
             device: { audiodevices: data.devices }
           })
           break
-        case 'audiodevice':
-          if (!data || !data.device) {
-            logger.warn('Received invalid audiodevice message from Python')
-            break
-          }
-          pStatus.device.audiodevice = data.device
-          await dbStatus.update(
-            { type: 'audiodevice' },
-            { $set: { audiodevice: data.device } },
-            { upsert: true }
-          )
-          sendMessageToClient('pStatus', {
-            device: { audiodevice: data.device }
-          })
-          logger.info(`Python Audio device changed to ${data.device}`)
-          break
         case 'media_changed':
           handleMediaChanged(data)
           break
         case 'set_image_time':
-          pStatus.imageTime = data.image_time
-          sendMessageToClient('pStatus', { imageTime: data.image_time })
-          await db.dbStatus.update(
+          pStatus.image_time = data.image_time
+          sendMessageToClient('pStatus', { image_time: data.image_time })
+          await dbStatus.update(
             { type: 'image_time' },
             { $set: { time: data.image_time } },
             { upsert: true }
@@ -166,6 +147,50 @@ const parsing = async (data) => {
             { upsert: true }
           )
           logger.info(`Fullscreen mode set to ${data.fullscreen}`)
+          break
+
+        case 'playlist_set':
+          pStatus.playlist = data.playlist || []
+          pStatus.playlistIndex = data.playlist_index || 0
+          sendMessageToClient('pStatus', {
+            playlist: pStatus.playlist,
+            playlistIndex: pStatus.playlistIndex
+          })
+          await dbStatus.update(
+            { type: 'playlist' },
+            {
+              $set: {
+                playlist: pStatus.playlist,
+                playlistIndex: pStatus.playlistIndex
+              }
+            },
+            { upsert: true }
+          )
+          logger.info(
+            `Playlist set with ${pStatus.playlist.length} tracks, current index: ${pStatus.playlistIndex}`
+          )
+          break
+        case 'playlist_index_set':
+          pStatus.playlistIndex = data.index || 0
+          sendMessageToClient('pStatus', {
+            playlistIndex: pStatus.playlistIndex
+          })
+          await dbStatus.update(
+            { type: 'playlistIndex' },
+            { $set: { playlistIndex: pStatus.playlistIndex } },
+            { upsert: true }
+          )
+          logger.info(`Playlist index set to ${pStatus.playlistIndex}`)
+          break
+        case 'playlist_mode':
+          pStatus.playlistMode = data.playlistMode
+          sendMessageToClient('pStatus', { playlistMode: data.playlistMode })
+          await dbStatus.update(
+            { type: 'playlistMode' },
+            { $set: { value: data.playlistMode } },
+            { upsert: true }
+          )
+          logger.info(`Playlist mode set to ${data.playlistMode}`)
           break
         case 'message':
           handleLogMessage('info', 'Received message from Python:', data)

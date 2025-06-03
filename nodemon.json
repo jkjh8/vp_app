@@ -1,5 +1,4 @@
 {
   "ignore": ["src/db/**/*.db", "src/py/.venv", "src/py/__pycache__"],
-  "watch": ["src/py/**/*.py"],
   "ext": "js,json,py"
 }

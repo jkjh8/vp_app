@@ -1,4 +1,5 @@
 import os
+import time
 import sys
 import win32process, win32con
 import json
@@ -27,7 +28,8 @@ class Player(QMainWindow):
         # 오디오 디바이스
         self.audioDevices = []
         # 플레이 리스트
-        self.playlist = self.pstatus.get('playlist', [])
+        self.playlist = self.pstatus.get('playlist', {})
+        self.tracks = self.playlist.get('tracks', [])
         self.playlist_track_index = self.pstatus.get('playlistTrackIndex', 0)
         self.image_time = self.pstatus.get('imageTime', 10)  # 이미지 표시 시간 (초)
         # 더블버퍼 플레이어 및 이미지 레이블
@@ -139,6 +141,7 @@ class Player(QMainWindow):
         try:
             # Set logo path
             self.pstatus["logo"]["file"] = logo_path.strip()
+            self.pstatus["logo"]["name"] = os.path.basename(logo_path)
             self.show_logo(True)
         except Exception as e:
             self.print_json("error", {"message": f"Error setting logo: {e}"})
@@ -243,7 +246,6 @@ class Player(QMainWindow):
                 )
                 self.logo_label.setVisible(True)
                 self.logo_label.raise_()  # 로고를 최상위 레이어로 이동
-
         except Exception as e:
             self.print_json("error", {"message": f"Error showing logo: {e}"})
 
