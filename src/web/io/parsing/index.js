@@ -9,6 +9,7 @@ const {
 } = require('@api/player')
 const logger = require('@logger')
 let { pStatus } = require('@src/_status')
+const { sendPlayerCommand } = require('@api/player')
 
 const parsing = (data) => {
   try {
@@ -17,13 +18,13 @@ const parsing = (data) => {
         playid(data.value)
         break
       case 'play':
-        require('@py').send({ command: 'play' })
+        sendPlayerCommand('play', {})
         break
       case 'pause':
-        require('@py').send({ command: 'pause' })
+        sendPlayerCommand('pause', {})
         break
       case 'stop':
-        require('@py').send({ command: 'stop' })
+        sendPlayerCommand('stop', {})
         break
       case 'time':
         updateTime(data.value * 1000)
@@ -51,10 +52,7 @@ const parsing = (data) => {
         break
       case 'repeat':
         pStatus.repeat = data.value
-        require('@py').send({
-          command: 'repeat',
-          mode: pStatus.repeat
-        })
+        sendPlayerCommand('repeat', { mode: pStatus.repeat })
         break
       default:
         console.warn('Unknown data type:', data.type)

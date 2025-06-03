@@ -59,8 +59,9 @@ function send(message) {
     return
   }
   if (proc.stdin.writable) {
-    proc.stdin.write(JSON.stringify(message) + '\n')
-    logger.info('Sent message to Python: ' + message)
+    const jsonMsg = JSON.stringify(message)
+    proc.stdin.write(jsonMsg + '\n')
+    logger.info('Sent message to Python: ' + jsonMsg)
   } else {
     logger.error('Python process stdin is not writable.')
   }

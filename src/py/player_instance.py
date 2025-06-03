@@ -82,8 +82,9 @@ def get_audio_devices(player):
                     "name": dev_info.description.decode() if dev_info.description else "기본 장치"
                 })
                 dev = dev_info.next
-        player.print_json("event", {"event": "audio_devices", "devices": devices})
-        player.print_json("event", {"event": "audio_device", "device": player.pstatus['device']['audiodevice']})
+        current_device = player.active_player.audio_output_device_get()
+        player.print_json("audiodevices", { "devices": devices})
+        player.print_json("message", {"current audio device": current_device})
     except Exception as e:
         player.print_json("error", {"message": f"Error getting audio devices: {e}"})
 
@@ -105,7 +106,7 @@ def set_audio_device(player, device):
         # 현재 오디오 디바이스 확인
         current_device = player.active_player.audio_output_device_get()
         if current_device == device:
-            player.print_json("event", {"event": "audio_device", "device": current_device}) 
+            player.print_json("audiodevice", {"device": current_device}) 
         else:
             player.print_json("error", {"message": f"Failed to set audio device to {device}."})
     except Exception as e:
@@ -119,17 +120,10 @@ def update_player_data(player, event=None):
     if active_player != player.active_player:
         return
     event_type = getattr(event, "type", "manual") if event is not None else "manual"
-    
-    # media 객체 확인
-    media = player.active_player.get_media()
-    if not media:
-        player.print_json("error", {"message": "No media loaded in active player."})
-        return
 
     # player 데이터 업데이트
     player.print_json("player_data", {
         "event": str(event_type),
-        "filename": media.get_mrl() if media else "No media",
         "duration": player.active_player.get_length(),
         "time": player.active_player.get_time(),
         "position": player.active_player.get_position(),

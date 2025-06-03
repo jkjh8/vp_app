@@ -12,7 +12,7 @@ from playlist import (
     swap_players, fade_transition, preload_next_media, handle_next_command,
     play_from_playlist, is_image_file, set_playlist, preload_next_from_playlist
 )
-from audio_device import initDoublePlayers, update_player_data
+from player_instance import initDoublePlayers, update_player_data
 from handle_message import handle_message
 from stdin import stdinReaderr
 
@@ -27,8 +27,9 @@ class Player(QMainWindow):
         # 오디오 디바이스
         self.audioDevices = []
         # 플레이 리스트
-        self.playlist = []
-        self.playlist_track_index = 0
+        self.playlist = self.pstatus.get('playlist', [])
+        self.playlist_track_index = self.pstatus.get('playlistTrackIndex', 0)
+        self.image_time = self.pstatus.get('imageTime', 10)  # 이미지 표시 시간 (초)
         # 더블버퍼 플레이어 및 이미지 레이블
         self.playerA = None
         self.playerB = None
@@ -75,7 +76,7 @@ class Player(QMainWindow):
 
     def initUi(self):
         self.set_background_color(self.pstatus.get("background", "#ffffff"))
-        self.set_fullscreen(self.pstatus.get("fullscreen", False))
+        self.set_fullscreen(self.pstatus.get("player", {}).get("fullscreen", False))
         self.set_logo(self.pstatus.get("logo", {}).get("file", ""))
         self.show_logo(self.pstatus.get("logo", {}).get("show", False))
 
@@ -105,7 +106,7 @@ class Player(QMainWindow):
             # QTimer를 사용해서 화면 전환이 완료된 후 위치 조정
             QTimer.singleShot(100, self._adjust_widgets_position)
             
-            update_player_data(self, None)
+            self.print_json("set_fullscreen", {"fullscreen": fullscreen})
         except Exception as e:
             self.print_json("error", {"message": f"Error setting fullscreen: {e}"})
 
@@ -130,6 +131,7 @@ class Player(QMainWindow):
         try:
             # Set background color
             self.setStyleSheet(f"background-color: {color};")
+            self.print_json("set_background", {"background": color})
         except Exception as e:
             self.print_json("error", {"message": f"Error setting background color: {e}"})
 

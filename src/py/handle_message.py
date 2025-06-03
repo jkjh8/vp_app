@@ -1,6 +1,6 @@
 import json
 import os
-from audio_device import get_audio_devices, set_audio_device
+from player_instance import get_audio_devices, set_audio_device
 
 # --- 개별 명령 처리 함수들 ---
 def handle_set(player, data):
@@ -52,9 +52,8 @@ def update_pstatus(player, data):
         player.print_json("error", {"message": "Invalid pstatus format. Expected a JSON object."})
 
 def set_image_time(player, data):
-    player.pstatus.setdefault('image_time', 10)
-    player.pstatus['image_time'] = data.get('time', 10)
-    player.print_json("message", f"Image display time set to {player.pstatus['image_time']} seconds")
+    player.image_time = data.get('time', 10)
+    player.print_json("set_image_time", {"image_time": player.image_time})
 
 # --- 메인 메시지 핸들러 ---
 def handle_message(player, data):
@@ -73,19 +72,25 @@ def handle_message(player, data):
         return
 
     dispatch = {
+        # set media or image
         'set': lambda: handle_set(player, data),
         'playid': lambda: handle_playid(player, data),
+        # player control commands
         'play': lambda: player.show_image(player.pstatus['current'].get("path", "")) if player.pstatus['current'].get("is_image", True) else player.active_player.play(),
         'stop': lambda: player.hide_image() if player.pstatus['current'].get("is_image", True) else player.active_player.stop(),
         'pause': lambda: player.active_player.pause(),
         'resume': lambda: player.active_player.play() if not player.pstatus['current'].get("is_image", True) else None,
-        'hide_image': lambda: player.hide_image(),
         'volume': lambda: player.active_player.audio_set_volume(data['volume']),
         'position': lambda: player.active_player.set_position(data['position']),
         'time': lambda: player.active_player.set_time(data['time']),
         'speed': lambda: player.active_player.set_rate(data['speed']),
+        'get_audio_devices': lambda: get_audio_devices(player),
+        'set_audio_device': lambda: set_audio_device(player, data.get("device", "")) if data.get("device", "") else player.print_json("error", {"message": "No audio device provided."}),
         'fullscreen': lambda: player.set_fullscreen(data['fullscreen']),
-        'background_color': lambda: (player.set_background_color(data['color']), player.pstatus.__setitem__('background', data['color'])),
+        'repeat': lambda: handle_repeat(player, data),
+        'hide_image': lambda: player.hide_image(),
+        
+        # logo and image handling
         'logo': lambda: (
             player.set_logo(data.get('file', '').strip()),
         ),
@@ -94,19 +99,16 @@ def handle_message(player, data):
             player.pstatus.setdefault("logo", {}).update({"width": data['width'], "height": data['height']}),
             player.show_logo(player.pstatus["logo"].get("show", False))
         ),
-        'get_audio_devices': lambda: get_audio_devices(player),
-        'set_audio_device': lambda: set_audio_device(player, data.get("device", "")) if data.get("device", "") else player.print_json("error", {"message": "No audio device provided."}),
-        'initialize': lambda: (player.update_pstatus_except_player(data.get("pstatus", {})), player.initUi()) if isinstance(data.get("pstatus", {}), dict) else player.print_json("error", {"message": "Invalid pstatus format. Expected a JSON object."}),
-        'pstatus': lambda: update_pstatus(player, data),
-        'image_time': lambda: set_image_time(player, data),
-        'next': lambda: player.handle_next_command(data.get("index")),
-        'repeat': lambda: handle_repeat(player, data),
-        'get_devices': lambda: get_audio_devices(player),
-        'set_device': lambda: set_audio_device(player, data.get("device", "")) if data.get("device", "") else player.print_json("error", {"message": "No audio device provided."}),
-        'image_time': lambda: set_image_time(player, data),
+        #playlist commands
         'playlist': lambda: setattr(player, 'playlist', data.get("playlist", [])),
         'playlist_track_index': lambda: setattr(player, 'playlist_track_index', data.get("index", 0)),
         'playlist_mode': lambda: setattr(player, 'playlist_mode', data.get("value", False)),
+        'image_time': lambda: set_image_time(player, data),
+        'next': lambda: player.handle_next_command(data.get("index")),
+        # status
+        'initialize': lambda: (player.update_pstatus_except_player(data.get("pstatus", {})), player.initUi()) if isinstance(data.get("pstatus", {}), dict) else player.print_json("error", {"message": "Invalid pstatus format. Expected a JSON object."}),
+        'background_color': lambda: (player.set_background_color(data['color']), player.pstatus.__setitem__('background', data['color'])),
+        'pstatus': lambda: update_pstatus(player, data),
     }
 
     func = dispatch.get(command)

@@ -4,6 +4,11 @@ const { pStatus } = require('@src/_status')
 const { dbStatus, dbFiles } = require('@db')
 const { getLogoPath } = require('@api/files/folders')
 
+const sendPlayerCommand = (command, data) => {
+  logger.info(`Sending command to player: ${command}`, data)
+  require('@py').send({ command, ...data })
+}
+
 const playid = async (id) => {
   logger.info(`Received play request with ID: ${id}`)
   const file = await dbFiles.findOne({ number: Number(id) })
@@ -11,41 +16,37 @@ const playid = async (id) => {
     throw new Error('Player not found')
   }
   pStatus.current = file
-  require('@py').send({ command: 'playid', file: file })
+  pStatus.playlistMode = false
+  sendPlayerCommand('playid', { file: file })
   return `Playing file: ${file.path}`
 }
 
 const play = () => {
   logger.info('Received play request without ID')
-  require('@py').send({ command: 'play' })
+  sendPlayerCommand('play', {})
   return 'Playing without ID'
 }
 
 const pause = () => {
   logger.info('Received pause request')
-  require('@py').send({ command: 'pause' })
+  sendPlayerCommand('pause', {})
   return 'Player paused'
 }
 
 const stop = () => {
   logger.info('Received stop request')
-  require('@py').send({ command: 'stop' })
+  sendPlayerCommand('stop', {})
   return 'Player stopped'
 }
 
 const updateTime = (time) => {
   logger.info(`Updating player time to: ${time}`)
-  require('@py').send({ command: 'time', time })
+  sendPlayerCommand('time', { time })
 }
 
 const setFullscreen = async (fullscreen) => {
-  logger.info(`Setting fullscreen mode to: ${fullscreen}`)
-  await dbStatus.update(
-    { type: 'fullscreen' },
-    { $set: { fullscreen } },
-    { upsert: true }
-  )
-  require('@py').send({ command: 'fullscreen', fullscreen })
+  sendPlayerCommand('fullscreen', { fullscreen })
+  return `Fullscreen mode set to: ${fullscreen}`
 }
 
 const setLogo = async (logo) => {
@@ -59,7 +60,7 @@ const setLogo = async (logo) => {
     { $set: { file: filePath, name: logo } },
     { upsert: true }
   )
-  require('@py').send({ command: 'logo', file: filePath })
+  sendPlayerCommand('logo', { file: filePath })
   return `Logo set to: ${logo}`
 }
 
@@ -67,7 +68,7 @@ const showLogo = async (show) => {
   logger.info(`Setting logo visibility to: ${show}`)
   pStatus.logo.show = show
   await dbStatus.update({ type: 'logo' }, { $set: { show } }, { upsert: true })
-  require('@py').send({ command: 'show_logo', show })
+  sendPlayerCommand('show_logo', { show })
   return `Logo visibility set to: ${show}`
 }
 
@@ -80,8 +81,7 @@ const setLogoSize = async (h, w) => {
     { $set: { height: h, width: w } },
     { upsert: true }
   )
-  require('@py').send({
-    command: 'logo_size',
+  sendPlayerCommand('logo_size', {
     height: h,
     width: w
   })
@@ -89,29 +89,24 @@ const setLogoSize = async (h, w) => {
 }
 
 const setBackground = async (background) => {
-  logger.info(`Setting background to: ${background}`)
-  require('@py').send({
-    command: 'background_color',
-    color: background
-  })
-  pStatus.background = background
-  await dbStatus.update(
-    { type: 'background' },
-    { $set: { value: background } },
-    { upsert: true }
-  )
+  sendPlayerCommand('background_color', { color: background })
   return `Background set to: ${background}`
+}
+
+const setAudioDevice = async (deviceId) => {
+  logger.info(`Setting audio device to: ${deviceId}`)
+  sendPlayerCommand('set_audio_device', { device: deviceId })
+  return `Audio device set to: ${deviceId}`
 }
 
 const setImageTime = async (time) => {
   logger.info(`Setting image time to: ${time}`)
-  require('@py').send({
-    command: 'image_time',
-    time
-  })
+  sendPlayerCommand('image_time', { time })
+  return `Image time set to: ${time}`
 }
 
 module.exports = {
+  sendPlayerCommand,
   playid,
   play,
   stop,
@@ -122,5 +117,6 @@ module.exports = {
   showLogo,
   setLogoSize,
   setBackground,
+  setAudioDevice,
   setImageTime
 }

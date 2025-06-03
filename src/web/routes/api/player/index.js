@@ -5,10 +5,8 @@ const {
   stop,
   pause,
   setFullscreen,
-  setLogo,
-  showLogo,
-  setLogoSize,
-  setBackground
+  setBackground,
+  setAudioDevice
 } = require('@api/player/index.js')
 const { pStatus } = require('@src/_status.js')
 const { dbStatus } = require('@db')
@@ -74,27 +72,7 @@ router.post('/background', async (req, res) => {
 
 router.put('/setaudiodevice', async (req, res) => {
   try {
-    const { deviceId } = req.body
-    console.log('Setting audio device to:', deviceId)
-    if (!deviceId) {
-      return res.status(400).json({ error: 'Device ID is required' })
-    }
-    // Assuming there's a function to set the audio device
-    // setAudioDevice(deviceId)
-    require('@py').send({
-      command: 'set_audio_device',
-      device: deviceId
-    })
-    // db update
-    console.log(
-      await dbStatus.update(
-        { type: 'audiodevice' },
-        { $set: { audiodevice: deviceId } },
-        { upsert: true }
-      )
-    )
-    pStatus.device.audiodevice = deviceId
-    res.status(200).json({ message: `Audio device set to ${deviceId}` })
+    res.status(200).json({ message: await setAudioDevice(req.body.deviceId) })
   } catch (error) {
     console.error('Error occurred while setting audio device:', error)
     res.status(500).json({ error: 'Failed to set audio device' })

@@ -57,9 +57,18 @@ const initIOServer = (httpPort) => {
   return io
 }
 
+const sendMessageToClient = (event, data) => {
+  if (!io) {
+    logger.error('Socket.IO server is not initialized.')
+    return
+  }
+  io.emit(event, data)
+}
+
 module.exports = {
   initIOServer,
   io,
+  sendMessageToClient,
   getIO: () => {
     if (!io) {
       logger.error('Socket.IO server is not initialized.')
