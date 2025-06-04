@@ -1,6 +1,6 @@
 const logger = require('@logger')
 const sendPlayerCommand = (command, data) => {
-  logger.info(`Sending command to player: ${command}`, data)
+  logger.info(`Sending command to player: ${command} ${data}`)
   require('@py').send({ command, ...data })
 }
 

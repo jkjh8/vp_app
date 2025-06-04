@@ -1,6 +1,6 @@
 let { pStatus } = require('@src/_status.js')
 const logger = require('@logger')
-const { dbStatus } = require('@db')
+const { dbStatus, dbFiles } = require('@db')
 const { sendMessageToClient, sendPlayerCommand } = require('@api')
 
 function handleInfoMessage(data) {
@@ -28,38 +28,38 @@ function handleEndReached(data) {
       if (pStatus.playlistMode) {
         if (
           pStatus.playlist.length > 0 &&
-          data.data.playlist_index < pStatus.playlist.length - 1
+          data.playlist_index < pStatus.playlist.length - 1
         ) {
           logger.info(
-            `End of track reached(none), moving to next track in playlist. Current index: ${data.data.playlist_index}`
+            `End of track reached(none), moving to next track in playlist. Current index: ${data.playlist_index}`
           )
-          sendPlayerCommand({ command: 'next' })
+          sendPlayerCommand('next', {})
         } else {
-          sendPlayerCommand({ command: 'stop' })
+          sendPlayerCommand('stop', {})
         }
       } else {
         logger.info('End of track reached, stopping playback.')
-        sendPlayerCommand({ command: 'stop' })
+        sendPlayerCommand('stop', {})
       }
       break
     case 'all':
       if (pStatus.playlistMode) {
         logger.info('End of playlist reached, stopping playback.')
-        sendPlayerCommand({ command: 'next' })
+        sendPlayerCommand('next', {})
       } else {
         logger.info('End of track reached, stopping playback.')
-        sendPlayerCommand({ command: 'stop' })
-        sendPlayerCommand({ command: 'play' })
+        sendPlayerCommand('stop', {})
+        sendPlayerCommand('play', {})
       }
       break
     case 'single':
       logger.info('End of single track reached, stopping playback.')
-      sendPlayerCommand({ command: 'stop' })
+      sendPlayerCommand('stop', {})
       break
     case 'repeat_one':
       logger.info('Repeat one mode, restarting current track.')
-      sendPlayerCommand({ command: 'stop' })
-      sendPlayerCommand({ command: 'play' })
+      sendPlayerCommand('stop', {})
+      sendPlayerCommand('play', {})
       break
   }
 }
@@ -183,14 +183,25 @@ const parsing = async (data) => {
           logger.info(`Playlist index set to ${pStatus.playlistIndex}`)
           break
         case 'playlist_mode':
-          pStatus.playlistMode = data.playlistMode
-          sendMessageToClient('pStatus', { playlistMode: data.playlistMode })
+          pStatus.playlistMode = data.mode || false
+          sendMessageToClient('pStatus', { playlistMode: pStatus.playlistMode })
           await dbStatus.update(
             { type: 'playlistMode' },
-            { $set: { value: data.playlistMode } },
+            { $set: { value: pStatus.playlistMode } },
             { upsert: true }
           )
-          logger.info(`Playlist mode set to ${data.playlistMode}`)
+          logger.info(`Playlist mode set to ${pStatus.playlistMode}`)
+          break
+        case 'current_track':
+          console.log('Received current_track message from Python:', data)
+          const uuid = data.uuid || null
+          if (uuid) {
+            const file = await dbFiles.findOne({ uuid })
+            if (file) {
+              pStatus.current = file
+              sendMessageToClient('pStatus', { current: file })
+            }
+          }
           break
         case 'message':
           handleLogMessage('info', 'Received message from Python:', data)

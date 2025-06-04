@@ -28,8 +28,7 @@ class Player(QMainWindow):
         # 오디오 디바이스
         self.audioDevices = []
         # 플레이 리스트
-        self.playlist = self.pstatus.get('playlist', {})
-        self.tracks = self.playlist.get('tracks', [])
+        self.playlist = []
         self.playlist_track_index = self.pstatus.get('playlistTrackIndex', 0)
         self.image_time = self.pstatus.get('imageTime', 10)  # 이미지 표시 시간 (초)
         # 더블버퍼 플레이어 및 이미지 레이블

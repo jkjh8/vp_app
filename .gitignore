@@ -22,3 +22,4 @@ yarn-error.log*
 # python virtual environments
 .venv
 __pycache__
+vp_app.code-workspace

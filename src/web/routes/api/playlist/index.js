@@ -9,7 +9,8 @@ const {
   fnGetPlaylists,
   fnAddPlaylists,
   fnEditPlaylists,
-  fnAddTracksToPlaylist
+  fnAddTracksToPlaylist,
+  playlistPlay
 } = require('@api/playlists')
 
 router.get('/', async (req, res) => {
@@ -73,6 +74,17 @@ router.delete('/:id', async (req, res) => {
     }
   } catch (error) {
     logger.error('Error deleting playlist:', error)
+    res.status(500).json({ error: 'Internal Server Error, ' + error.message })
+  }
+})
+
+router.get('/play', async (req, res) => {
+  const { playlistId, trackIndex } = req.query
+  try {
+    const result = await playlistPlay(playlistId, trackIndex)
+    res.status(200).json(result)
+  } catch (error) {
+    logger.error('Error playing from playlist:', error)
     res.status(500).json({ error: 'Internal Server Error, ' + error.message })
   }
 })

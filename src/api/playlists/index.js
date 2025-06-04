@@ -37,6 +37,7 @@ const fnAddPlaylists = async (args) => {
 const fnEditPlaylists = async (args) => {
   const { id, ...updateData } = args
   if (!id) return new Error('Playlist ID is required')
+  console.log('Updating playlist with ID:', id, 'and data:', updateData)
   return await dbPlaylists.update({ _id: id }, { $set: updateData })
 }
 
@@ -51,18 +52,37 @@ const fnAddTracksToPlaylist = async (playlistId, tracks) => {
 }
 
 const setPlaylist = async (playlistId) => {
-  if (!playlistId) {
-    throw new Error('Playlist ID is required')
-  }
-  const playlist = await dbPlaylists.findOne({ playlistId })
-  pStatus.playlist = playlist.tracks || []
-  pStatus.playlistIndex = playlistId
-  pStatus.tracks = playlist.tracks || []
-  sendPlayerCommand('playlist', {
-    playlist: pStatus.playlist,
-    playlistIndex: pStatus.playlistIndex
+  return new Promise(async (resolve, reject) => {
+    if (!playlistId) {
+      return reject(new Error('Playlist ID is required'))
+    }
+    const playlist = await dbPlaylists.findOne({ playlistId })
+    if (!playlist) {
+      return reject(new Error('Playlist not found'))
+    }
+
+    // playlist의 tracks에서 uuid를 이용해 파일 정보를 가져오기
+    if (playlist.tracks && playlist.tracks.length > 0) {
+      playlist.tracks = await Promise.all(
+        playlist.tracks.map(async (track) => {
+          const file = await dbFiles.findOne({ uuid: track })
+          if (file) {
+            return {
+              name: file.name,
+              path: file.path,
+              uuid: file.uuid,
+              mimetype: file.mimetype
+            }
+          }
+        })
+      )
+    }
+    sendPlayerCommand('playlist', {
+      playlist: playlist.tracks,
+      playlistIndex: pStatus.playlistIndex
+    })
+    resolve(`Playlist set to: ${playlist.name}`)
   })
-  return `Playlist set to: ${playlist.name}`
 }
 
 const setPlaylistIndex = async (index) => {
@@ -76,22 +96,37 @@ const setPlaylistIndex = async (index) => {
   return `Playlist index set to: ${index}`
 }
 
-const setPlaylistMode = async (mode = false) => {
-  if (mode === undefined || mode === null) {
-    throw new Error('Mode is required')
+const setPlaylistMode = async (mode) => {
+  return new Promise((resolve, reject) => {
+    let value = false
+    if (
+      mode === 1 ||
+      mode === '1' ||
+      mode === 'true' ||
+      mode === 'True' ||
+      mode === 'TRUE' ||
+      mode === true
+    ) {
+      value = true
+    } else {
+      value = false
+    }
+    sendPlayerCommand('playlist_mode', { value })
+    resolve(`Playlist mode set to: ${value}`)
+  })
+}
+
+const playlistPlay = async (playlistId, trackIndex = 0) => {
+  if (!playlistId) {
+    throw new Error('Playlist ID is required')
   }
-  if (
-    mode === 1 ||
-    mode === '1' ||
-    mode === 'true' ||
-    mode === 'True' ||
-    mode === 'TRUE' ||
-    mode === true
-  ) {
-    mode = true
-  }
-  sendPlayerCommand('playlist_mode', { value: mode })
-  return `Playlist mode set to: ${mode}`
+  await setPlaylistMode(true)
+  await setPlaylist(playlistId)
+  pStatus.playlistMode = true
+  sendPlayerCommand('playlist_play', {
+    playlistId,
+    trackIndex
+  })
 }
 
 module.exports = {
@@ -101,5 +136,6 @@ module.exports = {
   fnAddTracksToPlaylist,
   setPlaylist,
   setPlaylistMode,
-  setPlaylistIndex
+  setPlaylistIndex,
+  playlistPlay
 }

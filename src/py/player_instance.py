@@ -18,10 +18,15 @@ def initDoublePlayers(player):
     )
     player.playerA = player.instanceA.media_player_new()
     player.playerB = player.instanceB.media_player_new()
-    player.playerA.set_hwnd(int(player.winId()))
-    player.playerB.set_hwnd(int(player.winId()))
+
+    # 동일한 winId를 사용하여 동일한 창에 표시되도록 설정
+    hwnd = int(player.winId())
+    player.playerA.set_hwnd(hwnd)
+    player.playerB.set_hwnd(hwnd)
+
     player.active_player = player.playerA
     player.next_player = player.playerB
+
     # 이벤트 핸들러 등록
     init_events_double(player)
     # 오디오 디바이스 가져오기 및 설정
@@ -62,6 +67,30 @@ def on_end_reached(player, event):
             player.print_json("end_reached", {"playlist_index": player.playlist_track_index})
         except Exception as e:
             player.print_json("error", {"message": f"Exception in on_end_reached: {e}"})
+            
+def hide_all_images(player):
+    """
+    모든 이미지 숨기기
+    """
+    if hasattr(player, 'image_label') and player.image_label:
+        player.image_label.hide()
+    if hasattr(player, 'logo_label') and player.logo_label:
+        player.logo_label.hide()
+    if hasattr(player, '_image_timer') and player._image_timer:
+        player._image_timer.stop()
+        player._image_timer.deleteLater()
+        player._image_timer = None
+
+def stop_all_players(player):
+    """
+    모든 플레이어 중지
+    """
+    if hasattr(player, 'playerA') and player.playerA:
+        player.playerA.stop()
+    if hasattr(player, 'playerB') and player.playerB:
+        player.playerB.stop()
+    hide_all_images(player)
+    player.print_json("message", {"message": "All players stopped."})
 
 def get_audio_devices(player):
     """
@@ -106,7 +135,7 @@ def set_audio_device(player, device):
         # 현재 오디오 디바이스 확인
         current_device = player.active_player.audio_output_device_get()
         if current_device == device:
-            player.print_json("audiodevice", {"device": current_device}) 
+            player.print_json("message", {"device": current_device}) 
         else:
             player.print_json("error", {"message": f"Failed to set audio device to {device}."})
     except Exception as e:

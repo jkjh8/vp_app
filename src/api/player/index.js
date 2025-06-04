@@ -51,7 +51,6 @@ const setFullscreen = async (fullscreen) => {
 }
 
 const setLogo = async (logo) => {
-  logger.info(`Setting logo to: ${logo} at path: ${filePath}`)
   const filePath = path.join(getLogoPath(), logo)
   pStatus.logo.file = filePath
   pStatus.logo.name = logo
@@ -64,6 +63,7 @@ const setLogo = async (logo) => {
     logo: pStatus.logo
   })
   sendPlayerCommand('logo', { file: filePath })
+  logger.info(`Setting logo to: ${logo} at path: ${filePath}`)
   return `Logo set to: ${logo}`
 }
 

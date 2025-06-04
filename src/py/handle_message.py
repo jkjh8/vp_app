@@ -1,7 +1,7 @@
 import json
 import os
-from player_instance import get_audio_devices, set_audio_device
-from playlist import set_playlist, set_playlist_mode, set_playlist_index
+from player_instance import get_audio_devices, set_audio_device, hide_all_images, stop_all_players
+from playlist import set_playlist, set_playlist_mode, set_playlist_index, play_from_playlist, handle_next_command
 
 # --- 개별 명령 처리 함수들 ---
 def handle_set(player, data):
@@ -78,7 +78,7 @@ def handle_message(player, data):
         'playid': lambda: handle_playid(player, data),
         # player control commands
         'play': lambda: player.show_image(player.pstatus['current'].get("path", "")) if player.pstatus['current'].get("is_image", True) else player.active_player.play(),
-        'stop': lambda: player.hide_image() if player.pstatus['current'].get("is_image", True) else player.active_player.stop(),
+        'stop': lambda: (hide_all_images(player), stop_all_players(player)),
         'pause': lambda: player.active_player.pause(),
         'resume': lambda: player.active_player.play() if not player.pstatus['current'].get("is_image", True) else None,
         'volume': lambda: player.active_player.audio_set_volume(data['volume']),
@@ -90,7 +90,6 @@ def handle_message(player, data):
         'fullscreen': lambda: player.set_fullscreen(data['fullscreen']),
         'repeat': lambda: handle_repeat(player, data),
         'hide_image': lambda: player.hide_image(),
-        
         # logo and image handling
         'logo': lambda: player.set_logo(data.get('file', '').strip()),
         'show_logo': lambda: player.show_logo(data.get('show', False)),
@@ -103,7 +102,8 @@ def handle_message(player, data):
         'playlist_track_index': lambda: set_playlist_index(player, data.get("index", 0)),
         'playlist_mode': lambda: set_playlist_mode(player, data.get("value", False)),
         'image_time': lambda: set_image_time(player, data),
-        'next': lambda: player.handle_next_command(data.get("index")),
+        'next': lambda: handle_next_command(player, data.get("index", None)),
+        'playlist_play': lambda: play_from_playlist(player, data.get("trackIndex", 0)),
         # status
         'background_color': lambda: (player.set_background_color(data.get('color', '#ffffff')), player.pstatus.__setitem__('background', data.get('color', '#ffffff'))),
         'pstatus': lambda: update_pstatus(player, data),
