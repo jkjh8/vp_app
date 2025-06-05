@@ -15,7 +15,7 @@ winston.addColors({
 })
 
 const logger = winston.createLogger({
-  level: 'info',
+  level: 'debug', // Changed from 'info' to 'debug'
   levels: {
     error: 0,
     warn: 1,

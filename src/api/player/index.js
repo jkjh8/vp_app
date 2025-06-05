@@ -62,7 +62,7 @@ const setLogo = async (logo) => {
   sendMessageToClient('pStatus', {
     logo: pStatus.logo
   })
-  sendPlayerCommand('logo', { file: filePath })
+  sendPlayerCommand('logo_file', { file: filePath })
   logger.info(`Setting logo to: ${logo} at path: ${filePath}`)
   return `Logo set to: ${logo}`
 }

@@ -95,11 +95,23 @@ const parsing = async (data) => {
       const { type, data } = JSON.parse(line)
       switch (type) {
         case 'info':
-          handleInfoMessage(data)
+          logger.info('Received info message from Python:' + data)
+          break
+        case 'debug':
+          logger.debug('Received debug message from Python:' + data)
+          break
+        case 'message':
+          handleLogMessage('info', 'Received message from Python:', data)
+          break
+        case 'error':
+          handleLogMessage('error', 'Received error from Python:', data)
+          break
+        case 'active_player_id':
+          pStatus.active_player_id = data.id
           break
         case 'stop':
           logger.info(`Received stop command from Python:${data}`)
-          sendPlayerCommand({ command: 'stop' })
+          sendPlayerCommand('stop', {})
           break
         case 'end_reached':
           handleEndReached(data)
@@ -110,6 +122,10 @@ const parsing = async (data) => {
           break
         case 'audiodevices':
           pStatus.device.audiodevices = data.devices
+          logger.debug(
+            `Received audio devices from Python: ${JSON.stringify(data.devices)}`
+          )
+          // Update the audio devices in pStatus
           sendMessageToClient('pStatus', {
             device: { audiodevices: data.devices }
           })
@@ -203,12 +219,7 @@ const parsing = async (data) => {
             }
           }
           break
-        case 'message':
-          handleLogMessage('info', 'Received message from Python:', data)
-          break
-        case 'error':
-          handleLogMessage('error', 'Received error from Python:', data)
-          break
+
         default:
           handleLogMessage(
             'warn',

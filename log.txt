@@ -1,0 +1,25 @@
+Icon set from C:\Users\jkjh8\Desktop\DEV\vp_app\src\py\player\icon.png
+Icon set from C:\Users\jkjh8\Desktop\DEV\vp_app\src\py\player\icon.png
+Icon set from C:\Users\jkjh8\Desktop\DEV\vp_app\src\py\player\icon.png
+{
+  "type": "info",
+  "data": "Icon set from C:\\Users\\jkjh8\\Desktop\\DEV\\vp_app\\src\\py\\player\\icon.png"
+}
+
+{
+  "type": "info",
+  "data": "Icon set from C:\\Users\\jkjh8\\Desktop\\DEV\\vp_app\\src\\py\\player\\icon.png"
+}
+{
+  "type": "info",
+  "data": "Icon set from C:\\Users\\jkjh8\\Desktop\\DEV\\vp_app\\src\\py\\player\\icon.png"
+}
+{
+  "type": "info",
+  "data": "Icon set from C:\\Users\\jkjh8\\Desktop\\DEV\\vp_app\\src\\py\\player\\icon.png"
+}
+{"type":"info","data":"Icon set from C:\\Users\\jkjh8\\Desktop\\DEV\\vp_app\\src\\py\\player\\icon.png"}
+{"type":"info","data":"Icon set from C:\\Users\\jkjh8\\Desktop\\DEV\\vp_app\\src\\py\\player\\icon.png"}
+{"type":"info","data":"Icon set from C:\\Users\\jkjh8\\Desktop\\DEV\\vp_app\\src\\py\\player\\icon.png"}
+{"type":"info","data":"Icon set from C:\\Users\\jkjh8\\Desktop\\DEV\\vp_app\\src\\py\\player\\icon.png"}
+{"type":"info","data":"Icon set from C:\\Users\\jkjh8\\Desktop\\DEV\\vp_app\\src\\py\\player\\icon.png"}

@@ -54,7 +54,7 @@ const getSetupfromDB = async () => {
         pStatus.playlistIndex = setup.playlistIndex || 0
         break
       default:
-        logger.warn(`Unknown setup type: ${JSON.stringify(setup)}`)
+        logger.warn(`from db Unknown setup type: ${JSON.stringify(setup)}`)
     }
   })
   return pStatus

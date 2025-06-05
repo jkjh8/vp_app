@@ -11,7 +11,7 @@ const { parsing } = require('./parsing')
 const {} = require('@src/_status.js')
 
 const pythonPath = path.join(__dirname, '.venv', 'Scripts', 'python.exe')
-const pythonScriptPath = path.join(__dirname, 'player.py')
+const pythonScriptPath = path.join(__dirname, 'player', 'player.py')
 
 function startPythonProcess() {
   if (getPythonProcess()) {
@@ -23,19 +23,18 @@ function startPythonProcess() {
     stdio: ['pipe', 'pipe', 'pipe'],
     shell: false,
     env: {
-      ...process.env,
-      PYTHONIOENCODING: 'utf-8',
-      LANG: 'ko_KR.UTF-8',
-      VP_PSTATUS: JSON.stringify(pStatus) // pStatus를 JSON 문자열로 전달
+      ...process.env, // 기존 환경변수 유지
+      encoding: 'utf-8',
+      VP_PSTATUS: JSON.stringify(pStatus), // pStatus를 JSON 문자열로 전달
+      PYTHONIOENCODING: 'utf-8' // Python 출력 인코딩 설정
     }
   })
 
   proc.stdout.on('data', parsing)
   proc.stderr.on('data', (data) => logger.error('Python stderr: ' + data))
   proc.on('close', (code) => {
-    logger.info('Python process exited with code ' + code)
-    setPythonProcess(null)
-    if (!app.isQuiting) app.quit()
+    logger.warn('Python process exited with code ' + code)
+    app.quit() // Python 프로세스가 종료되면 앱도 종료
   })
   setPythonProcess(proc)
   logger.info('Python process started with PID: ' + proc.pid)
@@ -48,7 +47,6 @@ function stopPythonProcess() {
     return
   }
   proc.kill()
-  setPythonProcess(null)
   logger.info('Python process has been terminated.')
 }
 
