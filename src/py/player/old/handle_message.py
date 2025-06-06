@@ -98,7 +98,7 @@ def handle_message(player, data):
             player.show_logo(player.pstatus["logo"].get("show", False))
         ),
         # playlist commands
-        'playlist': lambda: set_playlist(player, data.get("playlist", {}), data.get("playlistIndex", 0)),
+        'playlist': lambda: set_playlist(player, data.get("playlist", {}), data.get("playlistTrackIndex", 0)),
         'playlist_track_index': lambda: set_playlist_index(player, data.get("index", 0)),
         'playlist_mode': lambda: set_playlist_mode(player, data.get("value", False)),
         'image_time': lambda: set_image_time(player, data),

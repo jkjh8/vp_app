@@ -22,7 +22,8 @@ function handleLogMessage(level, prefix, data) {
 }
 
 function handleEndReached(data) {
-  pStatus.playlistIndex = data.playlist_index ?? 0
+  pStatus.playlistTrackIndex = data.playlist_index ?? 0
+  const idx = data.id ?? 0
   switch (pStatus.repeat) {
     case 'none':
       if (pStatus.playlistMode) {
@@ -35,11 +36,11 @@ function handleEndReached(data) {
           )
           sendPlayerCommand('next', {})
         } else {
-          sendPlayerCommand('stop', {})
+          sendPlayerCommand('stop', { idx })
         }
       } else {
         logger.info('End of track reached, stopping playback.')
-        sendPlayerCommand('stop', {})
+        sendPlayerCommand('stop', { idx })
       }
       break
     case 'all':
@@ -48,43 +49,45 @@ function handleEndReached(data) {
         sendPlayerCommand('next', {})
       } else {
         logger.info('End of track reached, stopping playback.')
-        sendPlayerCommand('stop', {})
-        sendPlayerCommand('play', {})
+        sendPlayerCommand('stop', { idx })
+        sendPlayerCommand('next', {})
       }
       break
     case 'single':
       logger.info('End of single track reached, stopping playback.')
-      sendPlayerCommand('stop', {})
+      sendPlayerCommand('stop', { idx })
       break
     case 'repeat_one':
       logger.info('Repeat one mode, restarting current track.')
-      sendPlayerCommand('stop', {})
-      sendPlayerCommand('play', {})
+      sendPlayerCommand('stop', { idx })
+      sendPlayerCommand('play', { idx })
       break
   }
 }
 
-function handleMediaChanged(data) {
-  if (!data || typeof data.playlist_index === 'undefined') {
-    logger.warn('Received invalid media_changed message from Python')
-    return
-  }
-
-  pStatus.playlistIndex = data.playlist_index
-
-  if (pStatus.playlistMode && pStatus.playlistIndex >= 0) {
+async function handleMediaChanged(data) {
+  logger.info(`Media changed event received: ${JSON.stringify(data)}`)
+  if (data.uuid) {
+    const file = await dbFiles.findOne({ uuid: data.uuid })
+    pStatus.player[data.idx] = { ...pStatus.player[data.idx], file: file }
     logger.info(
-      `Media changed, updating current track index to ${pStatus.playlistIndex}`
+      `Media changed for player ${data.idx}, file: ${file.filename}, uuid: ${file.uuid}`
     )
-    pStatus.current = pStatus.playlist[pStatus.playlistIndex]
-  } else {
-    logger.info('Media changed, resetting current track index.')
-    pStatus.current = null
+  }
+  if (data.playlist_track_index) {
+    pStatus.playlistTrackIndex = data.playlist_track_index
+    pStatus.player[data.idx] = {
+      ...pStatus.player[data.idx],
+      file: pStatus.tracks[pStatus.playlistTrackIndex]
+    }
+    logger.info(
+      `Media changed, current track set to index ${pStatus.playlistTrackIndex}, file: ${pStatus.player[data.idx].file.filename}`
+    )
   }
 
   sendMessageToClient('pStatus', {
-    current: pStatus.current,
-    playlistIndex: pStatus.playlistIndex
+    player: pStatus.player,
+    playerTrackIndex: pStatus.playlistTrackIndex
   })
 }
 
@@ -108,17 +111,21 @@ const parsing = async (data) => {
           break
         case 'active_player_id':
           pStatus.active_player_id = data.id
+          sendMessageToClient('pStatus', { activePlayerId: data.id })
           break
         case 'stop':
           logger.info(`Received stop command from Python:${data}`)
           sendPlayerCommand('stop', {})
           break
+        case 'player_data':
+          pStatus.player[data.id] = { ...pStatus.player[data.id], ...data }
+          sendMessageToClient('pStatus', { player: pStatus.player })
+          break
+        case 'media_changed':
+          handleMediaChanged(data)
+          break
         case 'end_reached':
           handleEndReached(data)
-          break
-        case 'player_data':
-          pStatus.player = { ...pStatus.player, ...data }
-          sendMessageToClient('pStatus', { player: data })
           break
         case 'audiodevices':
           pStatus.device.audiodevices = data.devices
@@ -129,9 +136,6 @@ const parsing = async (data) => {
           sendMessageToClient('pStatus', {
             device: { audiodevices: data.devices }
           })
-          break
-        case 'media_changed':
-          handleMediaChanged(data)
           break
         case 'set_image_time':
           pStatus.image_time = data.image_time
@@ -167,36 +171,36 @@ const parsing = async (data) => {
 
         case 'playlist_set':
           pStatus.playlist = data.playlist || []
-          pStatus.playlistIndex = data.playlist_index || 0
+          pStatus.playlistTrackIndex = data.playlist_index || 0
           sendMessageToClient('pStatus', {
             playlist: pStatus.playlist,
-            playlistIndex: pStatus.playlistIndex
+            playlistTrackIndex: pStatus.playlistTrackIndex
           })
           await dbStatus.update(
             { type: 'playlist' },
             {
               $set: {
                 playlist: pStatus.playlist,
-                playlistIndex: pStatus.playlistIndex
+                playlistTrackIndex: pStatus.playlistTrackIndex
               }
             },
             { upsert: true }
           )
           logger.info(
-            `Playlist set with ${pStatus.playlist.length} tracks, current index: ${pStatus.playlistIndex}`
+            `Playlist set with ${pStatus.playlist.length} tracks, current index: ${pStatus.playlistTrackIndex}`
           )
           break
         case 'playlist_index_set':
-          pStatus.playlistIndex = data.index || 0
+          pStatus.playlistTrackIndex = data.index || 0
           sendMessageToClient('pStatus', {
-            playlistIndex: pStatus.playlistIndex
+            playlistTrackIndex: pStatus.playlistTrackIndex
           })
           await dbStatus.update(
-            { type: 'playlistIndex' },
-            { $set: { playlistIndex: pStatus.playlistIndex } },
+            { type: 'playlistTrackIndex' },
+            { $set: { playlistTrackIndex: pStatus.playlistTrackIndex } },
             { upsert: true }
           )
-          logger.info(`Playlist index set to ${pStatus.playlistIndex}`)
+          logger.info(`Playlist index set to ${pStatus.playlistTrackIndex}`)
           break
         case 'playlist_mode':
           pStatus.playlistMode = data.mode || false

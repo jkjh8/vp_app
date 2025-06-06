@@ -92,7 +92,7 @@ router.get('/show/:show', async (req, res) => {
 router.put('/size', async (req, res) => {
   try {
     res.json({
-      message: await setLogoSize(req.body.height, req.body.width),
+      message: await setLogoSize(req.body.size),
       pStatus
     })
   } catch (error) {

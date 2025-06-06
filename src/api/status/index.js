@@ -40,7 +40,8 @@ const getSetupfromDB = async () => {
           width: setup.width || 0,
           height: setup.height || 0,
           x: setup.x || 0,
-          y: setup.y || 0
+          y: setup.y || 0,
+          size: setup.size || 0
         }
         break
       case 'audiodevice':
@@ -51,7 +52,7 @@ const getSetupfromDB = async () => {
         break
       case 'playlist':
         pStatus.playlist = setup.playlist || {}
-        pStatus.playlistIndex = setup.playlistIndex || 0
+        pStatus.playlistTrackIndex = setup.playlistTrackIndex || 0
         break
       default:
         logger.warn(`from db Unknown setup type: ${JSON.stringify(setup)}`)

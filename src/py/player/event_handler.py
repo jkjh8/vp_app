@@ -16,11 +16,17 @@ def handle_stdin_message(self, data):
         return
     # 명령어에 따라 적절한 함수 호출
     dispatch = {
-        # "show_logo": lambda data: set_logo_visibility(self, data.get("show", True)),
-        # "logo_file": lambda data: set_logo_file(self, data.get("file", "")),
-        # "logo_size": lambda data: set_logo_size(self, data.get("width", 0), data.get("height", 0)),
+        "show_logo": lambda data: self.set_logo_visibility(data.get("show", True)),
+        "logo_file": lambda data: self.set_logo_file(data.get("file", "")),
+        "logo_size": lambda data: self.set_logo_size(int(data.get("size", 0))),
         "playid": lambda data: self.play_id(data.get("file", {})),
+        "play": lambda data: self.play(int(data.get("idx", 0))),
+        "pause": lambda data: self.pause(int(data.get("idx", 0))),
         "playlist_mode": lambda data: self.set_playlist_mode(data.get("value", False)),
+        "stop_all": lambda data: self.stop_all(),
+        "stop": lambda data: self.stop(int(data.get("idx", 0))),
+        "set_time": lambda data: self.set_time(data.get("time", 0), data.get("idx", 0)),
+        "background_color": lambda data: self.set_background_color(data.get("color", "#000000")),
     }
     func = dispatch.get(command)
     if func:

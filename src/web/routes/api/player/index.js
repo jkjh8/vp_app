@@ -23,7 +23,7 @@ router.get('/playid/:id', async (req, res) => {
   }
 })
 
-router.get('/play', async (req, res) => {
+router.get('/play/:id', async (req, res) => {
   try {
     res.status(200).send({ message: play() })
   } catch (error) {
@@ -41,9 +41,9 @@ router.get('/stop', async (req, res) => {
   }
 })
 
-router.get('/pause', async (req, res) => {
+router.get('/pause/:id', async (req, res) => {
   try {
-    res.status(200).json({ message: await pause() })
+    res.status(200).json({ message: await pause(req.params.id) })
   } catch (error) {
     console.error('Error occurred while pausing media:', error)
     res.status(500).json({ error: 'Failed to pause media' })

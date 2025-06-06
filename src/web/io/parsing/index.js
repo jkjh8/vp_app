@@ -18,16 +18,16 @@ const parsing = (data) => {
         playid(data.value)
         break
       case 'play':
-        sendPlayerCommand('play', {})
+        sendPlayerCommand('play', { idx: data.idx })
         break
       case 'pause':
-        sendPlayerCommand('pause', {})
+        sendPlayerCommand('pause', { idx: data.idx })
         break
       case 'stop':
         sendPlayerCommand('stop', {})
         break
       case 'time':
-        updateTime(data.value * 1000)
+        updateTime(data.value * 1000, data.idx)
         break
       case 'fullscreen':
         setFullscreen(data.value)

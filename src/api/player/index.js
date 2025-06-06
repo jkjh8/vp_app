@@ -22,27 +22,27 @@ const playlistPlay = async (playlistId, trackIndex) => {
   // playlistId와 trackIndex가 유효한지 확인
 }
 
-const play = () => {
+const play = (idx) => {
   logger.info('Received play request without ID')
-  sendPlayerCommand('play', {})
+  sendPlayerCommand('play', { idx })
   return 'Playing without ID'
 }
 
-const pause = () => {
+const pause = (idx) => {
   logger.info('Received pause request')
-  sendPlayerCommand('pause', {})
+  sendPlayerCommand('pause', { idx })
   return 'Player paused'
 }
 
 const stop = () => {
   logger.info('Received stop request')
-  sendPlayerCommand('stop', {})
+  sendPlayerCommand('stop_all', {})
   return 'Player stopped'
 }
 
-const updateTime = (time) => {
-  logger.info(`Updating player time to: ${time}`)
-  sendPlayerCommand('time', { time })
+const updateTime = (time, idx) => {
+  logger.info(`Updating player time to: ${time} for index: ${idx}`)
+  sendPlayerCommand('set_time', { time, idx })
 }
 
 const setFullscreen = async (fullscreen) => {
@@ -76,23 +76,17 @@ const showLogo = async (show) => {
   return `Logo visibility set to: ${show}`
 }
 
-const setLogoSize = async (h, w) => {
-  logger.info(`Setting logo size to: height=${h}, width=${w}`)
-  pStatus.logo.height = h
-  pStatus.logo.width = w
-  await dbStatus.update(
-    { type: 'logo' },
-    { $set: { height: h, width: w } },
-    { upsert: true }
-  )
+const setLogoSize = async (size) => {
+  logger.info(`Setting logo size to: ${size}`)
+  pStatus.logo.size = size
+  await dbStatus.update({ type: 'logo' }, { $set: { size } }, { upsert: true })
   sendMessageToClient('pStatus', {
     logo: pStatus.logo
   })
   sendPlayerCommand('logo_size', {
-    height: h,
-    width: w
+    size
   })
-  return `Logo size set to: height=${h}, width=${w}`
+  return `Logo size set to: ${size}`
 }
 
 const setBackground = async (background) => {
@@ -119,10 +113,10 @@ const setAudioDevice = async (deviceId) => {
   return `Audio device set to: ${deviceId}`
 }
 
-const setImageTime = async (time) => {
-  logger.info(`Setting image time to: ${time}`)
-  sendPlayerCommand('image_time', { time })
-  return `Image time set to: ${time}`
+const setImageTime = async (time, idx) => {
+  logger.info(`Setting image time to: ${time} for index: ${idx}`)
+  sendPlayerCommand('image_time', { time, idx })
+  return `Image time set to: ${time} for index: ${idx}`
 }
 
 module.exports = {

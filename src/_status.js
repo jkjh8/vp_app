@@ -1,7 +1,7 @@
 let pStatus = {
   activePlayerId: 0,
   playlistMode: false,
-  playlistIndex: 0,
+  playlistTrackIndex: 0,
   repeat: 'none',
   nics: [],
   image_time: 10,
@@ -23,54 +23,44 @@ let pStatus = {
     file: '',
     width: 0,
     height: 0,
+    size: 0,
     x: 0,
     y: 0
   },
-  player: {
-    event: '',
-    buffering: 0,
-    media_path: '',
-    filename: '',
-    volume: 100,
-    speed: 1.0,
-    duration: 0,
-    time: 0,
-    position: 0.0,
-    fullscreen: false,
-    playing: false,
-    is_image: false,
-    image_path: null
-  },
-  player1: {
-    event: '',
-    buffering: 0,
-    media_path: '',
-    filename: '',
-    volume: 100,
-    speed: 1.0,
-    duration: 0,
-    time: 0,
-    position: 0.0,
-    fullscreen: false,
-    playing: false,
-    is_image: false,
-    image_path: null
-  },
-  player2: {
-    event: '',
-    buffering: 0,
-    media_path: '',
-    filename: '',
-    volume: 100,
-    speed: 1.0,
-    duration: 0,
-    time: 0,
-    position: 0.0,
-    fullscreen: false,
-    playing: false,
-    is_image: false,
-    image_path: null
-  },
+  player: [
+    {
+      event: '',
+      buffering: 0,
+      media_path: '',
+      filename: '',
+      volume: 100,
+      speed: 1.0,
+      duration: 0,
+      time: 0,
+      position: 0.0,
+      fullscreen: false,
+      playing: false,
+      is_image: false,
+      image_path: null,
+      is_playing: 0
+    },
+    {
+      event: '',
+      buffering: 0,
+      media_path: '',
+      filename: '',
+      volume: 100,
+      speed: 1.0,
+      duration: 0,
+      time: 0,
+      position: 0.0,
+      fullscreen: false,
+      playing: false,
+      is_image: false,
+      image_path: null,
+      is_playing: 0
+    }
+  ],
   background: 'black'
 }
 

@@ -79,13 +79,13 @@ const setPlaylist = async (playlistId) => {
     }
     sendPlayerCommand('playlist', {
       playlist: playlist.tracks,
-      playlistIndex: pStatus.playlistIndex
+      playlistTrackIndex: pStatus.playlistTrackIndex
     })
     resolve(`Playlist set to: ${playlist.name}`)
   })
 }
 
-const setPlaylistIndex = async (index) => {
+const setplaylistTrackIndex = async (index) => {
   if (index === undefined || index === null) {
     throw new Error('Index is required')
   }
@@ -136,6 +136,6 @@ module.exports = {
   fnAddTracksToPlaylist,
   setPlaylist,
   setPlaylistMode,
-  setPlaylistIndex,
+  setplaylistTrackIndex,
   playlistPlay
 }
