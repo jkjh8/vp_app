@@ -157,16 +157,16 @@ const parsing = async (data) => {
           logger.info(`Background color set to ${data.background}`)
           break
         case 'set_fullscreen':
-          pStatus.player.fullscreen = data.fullscreen
+          pStatus.player.fullscreen = data.value
           sendMessageToClient('pStatus', {
-            player: { fullscreen: data.fullscreen }
+            fullscreen: data.value
           })
           await dbStatus.update(
             { type: 'fullscreen' },
-            { $set: { fullscreen: data.fullscreen } },
+            { $set: { fullscreen: data.value } },
             { upsert: true }
           )
-          logger.info(`Fullscreen mode set to ${data.fullscreen}`)
+          logger.info(`Fullscreen mode set to ${data.value}`)
           break
 
         case 'playlist_set':

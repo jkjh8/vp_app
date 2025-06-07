@@ -16,7 +16,7 @@ const router = express.Router()
 // id가 없을때는 그냥 플레이명령, id가 있으면 db에서 검색해서 파일위치를 함께 전송
 router.get('/playid/:id', async (req, res) => {
   try {
-    res.status(200).json({ message: await playid(req.params.id) })
+    res.status(200).json({ message: await playid(Number(req.params.id)) })
   } catch (error) {
     console.error('Error occurred while playing media:', error)
     res.status(500).send({ error: 'Failed to play media' })
@@ -25,7 +25,7 @@ router.get('/playid/:id', async (req, res) => {
 
 router.get('/play/:id', async (req, res) => {
   try {
-    res.status(200).send({ message: play() })
+    res.status(200).send({ message: play(Number(req.params.id)) })
   } catch (error) {
     console.error('Error occurred while playing media:', error)
     res.status(500).send({ error: 'Failed to play media' })
@@ -43,18 +43,18 @@ router.get('/stop', async (req, res) => {
 
 router.get('/pause/:id', async (req, res) => {
   try {
-    res.status(200).json({ message: await pause(req.params.id) })
+    res.status(200).json({ message: await pause(Number(req.params.id)) })
   } catch (error) {
     console.error('Error occurred while pausing media:', error)
     res.status(500).json({ error: 'Failed to pause media' })
   }
 })
 
-router.get('/fullscreen/:fullscreen', async (req, res) => {
+router.get('/fullscreen/:value', async (req, res) => {
   try {
     res
       .status(200)
-      .json({ message: await setFullscreen(req.params.fullscreen === 'true') })
+      .json({ message: await setFullscreen(req.params.value === 'true') })
   } catch (error) {
     console.error('Error occurred while setting fullscreen mode:', error)
     res.status(500).json({ error: 'Failed to set fullscreen mode' })

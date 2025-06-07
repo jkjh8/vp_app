@@ -45,9 +45,9 @@ const updateTime = (time, idx) => {
   sendPlayerCommand('set_time', { time, idx })
 }
 
-const setFullscreen = async (fullscreen) => {
-  sendPlayerCommand('fullscreen', { fullscreen })
-  return `Fullscreen mode set to: ${fullscreen}`
+const setFullscreen = async (value) => {
+  sendPlayerCommand('set_fullscreen', { value })
+  return `Fullscreen mode set to: ${value}`
 }
 
 const setLogo = async (logo) => {

@@ -80,8 +80,21 @@ class Player(QMainWindow):
         # Initialize VLC players and audio
         self.init_players()
         self.init_players_events()
+        self.set_audio_device = lambda device_id: set_audio_device(self, device_id)
+        self.get_audio_devices = lambda: get_audio_devices(self)
         get_audio_devices(self)
         set_audio_device(self, self.pstatus.get("device", {}).get("audiodevice", "default"))
+        
+    def set_fullscreen(self, value):
+        """ Set the fullscreen mode for the player. """
+        self.print("debug", f"Setting fullscreen mode to: {value}")
+        if value:
+            self.showFullScreen()
+        else:
+            self.showNormal()
+        for player in self.players:
+            player.set_fullscreen(value)
+        self.print("set_fullscreen", { "value": value })
     
     def init_players(self):
         # 공통 옵션을 변수로 선언
@@ -325,13 +338,12 @@ class Player(QMainWindow):
 
             # Load and cache the pixmap only if the path changed
             widget = self.player_widgets[idx]
-            if not hasattr(widget, 'original_pixmap') or widget.original_pixmap != image_path:
+            if not hasattr(widget, 'original_pixmap') or not isinstance(widget.original_pixmap, QPixmap):
                 pixmap = QPixmap(image_path)
                 if pixmap.isNull():
                     self.print("error", f"Failed to load image: {image_path}")
                     return
                 widget.original_pixmap = pixmap
-                widget.original_pixmap = image_path
             else:
                 pixmap = widget.original_pixmap
 

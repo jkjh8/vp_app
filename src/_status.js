@@ -61,6 +61,7 @@ let pStatus = {
       is_playing: 0
     }
   ],
+  fullscreen: false,
   background: 'black'
 }
 

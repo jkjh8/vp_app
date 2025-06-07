@@ -81,7 +81,7 @@ router.delete('/:id', async (req, res) => {
 router.get('/play', async (req, res) => {
   const { playlistId, trackIndex } = req.query
   try {
-    const result = await playlistPlay(playlistId, trackIndex)
+    const result = await playlistPlay(Number(playlistId), Number(trackIndex))
     res.status(200).json(result)
   } catch (error) {
     logger.error('Error playing from playlist:', error)

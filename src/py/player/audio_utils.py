@@ -14,21 +14,20 @@ def get_audio_devices(self):
     """Return a list of available audio devices for a VLC player."""
     try:
         devices = []
-        for player in self.players:
-            if not player:
-                self.print("error", {"message": "VLC player not initialized."})
-                continue
-
-            dev_list = player.audio_output_device_enum()
-            if dev_list:
-                dev = dev_list
-            while dev:
-                dev_info = dev.contents
-                devices.append({
-                    "deviceid": dev_info.device.decode() if dev_info.device else "default",
-                    "name": dev_info.description.decode() if dev_info.description else "기본 장치"
-                })
-                dev = dev_info.next
+        player = self.players[0] if self.players else vlc.MediaPlayer()
+        if not player:
+            self.print("error", "No player available to get audio devices.")
+            return []
+        dev_list = player.audio_output_device_enum()
+        if dev_list:
+            dev = dev_list
+        while dev:
+            dev_info = dev.contents
+            devices.append({
+                "deviceid": dev_info.device.decode() if dev_info.device else "default",
+                "name": dev_info.description.decode() if dev_info.description else "기본 장치"
+            })
+            dev = dev_info.next
         self.print("audiodevices", {"devices": devices})
         return devices
     except Exception as e:

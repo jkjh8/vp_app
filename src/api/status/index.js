@@ -48,7 +48,7 @@ const getSetupfromDB = async () => {
         pStatus.device.audiodevice = setup.audiodevice
         break
       case 'fullscreen':
-        pStatus.player.fullscreen = setup.fullscreen || false
+        pStatus.fullscreen = setup.fullscreen || false
         break
       case 'playlist':
         pStatus.playlist = setup.playlist || {}

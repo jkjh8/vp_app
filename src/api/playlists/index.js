@@ -2,23 +2,28 @@ const { pStatus } = require('@src/_status')
 const { dbPlaylists, dbFiles } = require('@db')
 const { sendPlayerCommand, sendMessageToClient } = require('@api')
 
+const getTracksWithFileInfo = async (tracks) => {
+  if (!tracks || tracks.length === 0) return []
+  return await Promise.all(
+    tracks.map(async (track) => {
+      const file = await dbFiles.findOne({ uuid: track })
+      if (file) {
+        return {
+          filename: file.filename,
+          path: file.path,
+          uuid: file.uuid,
+          mimetype: file.mimetype
+        }
+      }
+    })
+  )
+}
+
 const fnGetPlaylists = async () => {
   try {
     let playlists = await dbPlaylists.find()
-    // playlists의 각 항목의 tracks 필드에서 uuid를 files에서 조회해서 대체하기
     for (const playlist of playlists) {
-      if (playlist.tracks && playlist.tracks.length > 0) {
-        playlist.tracks = await Promise.all(
-          playlist.tracks.map(async (track) => {
-            const file = await dbFiles.findOne({ uuid: track })
-            if (file) {
-              return file
-            }
-          })
-        )
-      } else {
-        playlist.tracks = []
-      }
+      playlist.tracks = await getTracksWithFileInfo(playlist.tracks)
     }
     // pStatus에 직접 저장 (value 없이)
     pStatus.playlists = playlists
@@ -60,26 +65,9 @@ const setPlaylist = async (playlistId) => {
     if (!playlist) {
       return reject(new Error('Playlist not found'))
     }
-
-    // playlist의 tracks에서 uuid를 이용해 파일 정보를 가져오기
-    if (playlist.tracks && playlist.tracks.length > 0) {
-      playlist.tracks = await Promise.all(
-        playlist.tracks.map(async (track) => {
-          const file = await dbFiles.findOne({ uuid: track })
-          if (file) {
-            return {
-              name: file.name,
-              path: file.path,
-              uuid: file.uuid,
-              mimetype: file.mimetype
-            }
-          }
-        })
-      )
-    }
-    sendPlayerCommand('playlist', {
-      playlist: playlist.tracks,
-      playlistTrackIndex: pStatus.playlistTrackIndex
+    playlist.tracks = await getTracksWithFileInfo(playlist.tracks)
+    sendPlayerCommand('set_tracks', {
+      tracks: playlist.tracks
     })
     resolve(`Playlist set to: ${playlist.name}`)
   })
@@ -98,21 +86,10 @@ const setplaylistTrackIndex = async (index) => {
 
 const setPlaylistMode = async (mode) => {
   return new Promise((resolve, reject) => {
-    let value = false
-    if (
-      mode === 1 ||
-      mode === '1' ||
-      mode === 'true' ||
-      mode === 'True' ||
-      mode === 'TRUE' ||
-      mode === true
-    ) {
-      value = true
-    } else {
-      value = false
-    }
-    sendPlayerCommand('playlist_mode', { value })
-    resolve(`Playlist mode set to: ${value}`)
+    sendPlayerCommand('playlist_mode', { value: mode })
+    pStatus.playlistMode = mode
+    sendMessageToClient('pStatus', { playlistMode: mode })
+    resolve(`Playlist mode set to: ${mode}`)
   })
 }
 
@@ -122,7 +99,6 @@ const playlistPlay = async (playlistId, trackIndex = 0) => {
   }
   await setPlaylistMode(true)
   await setPlaylist(playlistId)
-  pStatus.playlistMode = true
   sendPlayerCommand('playlist_play', {
     playlistId,
     trackIndex
