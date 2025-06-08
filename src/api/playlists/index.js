@@ -1,6 +1,7 @@
 const { pStatus } = require('@src/_status')
 const { dbPlaylists, dbFiles } = require('@db')
 const { sendPlayerCommand, sendMessageToClient } = require('@api')
+const logger = require('@src/logger')
 
 const getTracksWithFileInfo = async (tracks) => {
   if (!tracks || tracks.length === 0) return []
@@ -12,7 +13,8 @@ const getTracksWithFileInfo = async (tracks) => {
           filename: file.filename,
           path: file.path,
           uuid: file.uuid,
-          mimetype: file.mimetype
+          mimetype: file.mimetype,
+          is_image: file.is_image
         }
       }
     })
@@ -97,8 +99,8 @@ const playlistPlay = async (playlistId, trackIndex = 0) => {
   if (!playlistId) {
     throw new Error('Playlist ID is required')
   }
-  await setPlaylistMode(true)
-  await setPlaylist(playlistId)
+  logger.info(await setPlaylist(playlistId))
+  logger.info(await setPlaylistMode(true))
   sendPlayerCommand('playlist_play', {
     playlistId,
     trackIndex

@@ -32,6 +32,8 @@ def handle_stdin_message(self, data):
         "get_audio_devices": lambda data: self.get_audio_devices(),
         # playerlist
         "playlist_mode": lambda data: self.set_playlist_mode(data.get("value", False)),
+        "playlist_play": lambda data: self.playlist_play(data.get("idx", 0)),
+        "set_tracks": lambda data: self.set_tracks(data.get("tracks", [])),
         # etc
         "set_fullscreen": lambda data: self.set_fullscreen(data.get("value", False)),
         "background_color": lambda data: self.set_background_color(data.get("color", "#000000")),

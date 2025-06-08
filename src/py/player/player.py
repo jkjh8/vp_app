@@ -5,10 +5,11 @@ from PySide6.QtGui import QPixmap, QIcon
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtSvgWidgets import QSvgWidget
 from stdin import stdinReaderr
-from background import set_background_color
+from ui_utils import set_background_color, set_fullscreen, fade_transition
 from event_handler import handle_stdin_message
 from logo_utils import set_logo_center, set_logo_size, update_logo_size, set_logo_file
 from audio_utils import set_audio_device, get_audio_devices
+from player_utils import init_players, init_players_events, update_active_player_id, update_player_data, stop, set_time
 
 class Player(QMainWindow):
     def __init__(self, pstatus=None):
@@ -37,16 +38,10 @@ class Player(QMainWindow):
         else:
             self.print("error", f"Warning: Icon file not found at {icon_path}")
 
-        # Logo utility bindings
-        self.set_logo_file = lambda file: set_logo_file(self, file)
-        self.set_logo_center = lambda: set_logo_center(self)
-        self.set_logo_size = lambda size: set_logo_size(self, size)
-        self.update_logo_size = lambda: update_logo_size(self)
-
         # Initialize variables from pstatus
         self.pstatus = pstatus or {}
         self.playlist_mode = bool(self.pstatus.get("playlistMode", False))
-        self.playlist = []
+        self.tracks = []
         self.playlist_track_index = int(self.pstatus.get("playlistTrackIndex", 0))
         self.audio_devices = []
         self.image_time = int(self.pstatus.get("imageTime", 10))
@@ -57,9 +52,13 @@ class Player(QMainWindow):
         self.logo_height = 0
         self.logo_svg = self.logo_file.lower().endswith(".svg")
         self.background_color = self.pstatus.get("background", "#000000")
+        self.fullscreen = bool(self.pstatus.get("fullscreen", False))
         self.active_player_id = 0
-        self.update_active_player_id(self.active_player_id)
-
+        
+        self.instances = []
+        self.players = []
+        self.current_files = [{}, {}]
+        
         # Create widgets
         self.player_widgets = [QLabel(self) for _ in range(2)]
         self.logo_widget = QLabel(self)
@@ -70,6 +69,12 @@ class Player(QMainWindow):
             player.setVisible(False)
 
         # Initialize logo
+        self.set_logo_file = lambda file: set_logo_file(self, file)
+        self.set_logo_center = lambda: set_logo_center(self)
+        self.set_logo_size = lambda size: set_logo_size(self, size)
+        self.update_logo_size = lambda: update_logo_size(self)
+        self.set_logo_visible = lambda visible: setattr(self.logo_widget, 'setVisible', visible)
+        
         self.set_logo_file(self.logo_file)
         if not self.logo_file or not os.path.exists(self.logo_file):
             self.print("error", f"Logo file does not exist: {self.logo_file}")
@@ -78,92 +83,62 @@ class Player(QMainWindow):
             self.print("debug", "Attempting to initialize SVG logo widget." if self.logo_svg else "Attempting to initialize Pixmap logo widget.")
 
         # Initialize VLC players and audio
+        self.init_players = lambda: init_players(self)
+        self.init_players_events = lambda: init_players_events(self)
+        self.update_active_player_id = lambda idx: update_active_player_id(self, idx)
+        self.update_player_data = lambda id, event: update_player_data(self, id, event)
+        self.stop = lambda idx=None: stop(self, idx)
+        self.set_time = lambda time, idx=None: set_time(self, time, idx)
+        
+        self.update_active_player_id(self.active_player_id)
+        
         self.init_players()
         self.init_players_events()
+        
+        # audio device management
         self.set_audio_device = lambda device_id: set_audio_device(self, device_id)
         self.get_audio_devices = lambda: get_audio_devices(self)
         get_audio_devices(self)
         set_audio_device(self, self.pstatus.get("device", {}).get("audiodevice", "default"))
         
-    def set_fullscreen(self, value):
-        """ Set the fullscreen mode for the player. """
-        self.print("debug", f"Setting fullscreen mode to: {value}")
-        if value:
-            self.showFullScreen()
-        else:
-            self.showNormal()
-        for player in self.players:
-            player.set_fullscreen(value)
-        self.print("set_fullscreen", { "value": value })
-    
-    def init_players(self):
-        # 공통 옵션을 변수로 선언
-        vlc_args = [
-            "--no-video-title-show",
-            "--avcodec-hw=any",
-            "--no-drop-late-frames",
-            "--no-skip-frames",
-        ]
-        # VLC 인스턴스 2개 생성 및 플레이어 리스트 초기화
-        self.instances = [vlc.Instance(*vlc_args) for _ in range(2)]
-        self.players = [instance.media_player_new() for instance in self.instances]
-        # 각 플레이어에 해당하는 위젯에 바인딩
-        for idx, player in enumerate(self.players):
-            player.set_hwnd(int(self.player_widgets[idx].winId()))
-        self.print("debug", "Initialized VLC players with double instances")
-    
-    def init_players_events(self):
-        try:
-            def make_handler(method, idx):
-                return lambda event: method(idx, event)
-            for idx, player in enumerate(self.players):
-                em = player.event_manager()
-                em.event_attach(
-                    vlc.EventType.MediaPlayerEndReached,
-                    make_handler(self.on_end_reached, idx)
-                )
-                em.event_attach(
-                    vlc.EventType.MediaPlayerEncounteredError,
-                    lambda event, id=idx: self.print("error", f"Player {id} encountered an error.")
-                )
-                # 이벤트 타입과 핸들러 매핑
-                for event_type in [
-                    vlc.EventType.MediaPlayerTimeChanged,
-                    vlc.EventType.MediaPlayerPlaying,
-                    vlc.EventType.MediaPlayerPaused,
-                    vlc.EventType.MediaPlayerStopped,
-                    vlc.EventType.MediaPlayerMediaChanged,
-                ]:
-                    em.event_attach(
-                        event_type,
-                        make_handler(self.update_player_data, idx)
-                    )
-        except Exception as e:
-            self.print("error", f"Error initializing player events: {e}")
+        # fullscreen mode
+        self.set_fullscreen = lambda value: set_fullscreen(self, value)
+        self.set_fullscreen(self.fullscreen)
+        
+        # fade transition
+        self.fade_transition = lambda idx: fade_transition(self, idx)
+        
+    def print(self, type, data):
+        """함수명과 데이터를 효율적으로 포맷하여 출력합니다."""
+        print(json.dumps({"type": type, "data": data}, ensure_ascii=False, separators=(",", ":")), flush=True)
 
     def set_playlist_mode(self, value):
         """ Set the playlist mode (on/off). """
         self.print("debug", f"Setting playlist mode to: {value}")
         self.playlist_mode = value
-        
-    def update_active_player_id(self, idx):
-        self.active_player_id = idx
-        self.print("active_player_id", { "id": self.active_player_id })
-        
+
     def play(self, idx=0):
         """ Play a specific player by index. """
-        if idx < 0 or idx >= len(self.players):
-            self.print("error", f"Invalid player index: {idx}")
+        if self.active_player_id != idx:
+            self.update_active_player_id(idx)
+            self.print("debug", f"Active player ID updated to: {idx}")
+
+        if self.current_files[idx].get("is_image", True):
+            # 이미지 재생
+            self.display_image(self.current_files[idx], idx)
+            self.print("debug", f"Image displayed on player widget {idx}.")
             return
-        
+        else:
+            # 미디어 재생
+            self.players[idx].play()
+
         # 해당 플레이어의 위젯이 숨김 상태면 활성화 하기
         if not self.player_widgets[idx].isVisible():
             # 트랜지션(페이드 효과)으로 위젯 전환
             self.fade_transition(idx)
             self.print("debug", f"Player widget {idx} shown with fade transition.")
 
-        self.player[idx].play()
-        
+
     def pause(self, idx=0):
         """ Pause a specific player by index. """
         if idx < 0 or idx >= len(self.players):
@@ -175,46 +150,47 @@ class Player(QMainWindow):
     def play_id(self, file):
         """Efficiently play a specific file by ID or path."""
         idx = self.active_player_id
-        if not file:
-            self.print("error", "No file provided to play.")
-            return
-
-        media_path = file.get("path", "")
-        if not media_path:
-            self.print("error", "Invalid media path provided.")
-            return
-
-        self.print("debug", f"Playing file: {media_path}")
 
         # Determine next available player index if current is busy
         if self.players[idx].is_playing() or (self.player_widgets[idx].isVisible() and self.player_widgets[idx].pixmap()):
             idx = 1 if idx == 0 else 0
+            
+        # set Media file for the player
+        self.set_media(file, idx)
+        # Update the current file for the player
+        self.current_files[idx] = file
 
         try:
-            if file.get("is_image", True):
-                self.display_image(file, idx)
-            else:
-                self.set_media(file, idx)
+            if file.get("is_image") == False:
                 self.players[idx].play()
             self.update_active_player_id(idx)
             self.fade_transition(idx)
         except Exception as e:
             self.print("error", f"Error playing file: {e}")
             
-    def stop(self, idx=None):
-        if idx is None:
-            idx = self.active_player_id
-        """ Stop a specific player by index. """
-        self.players[idx].stop()
-        self.stop_image(idx)  # Stop displaying any image
-        self.player_widgets[idx].setVisible(False)  # Hide the player widget
-        self.print("debug", f"Player {idx} stopped.")
-    
-    def set_media(self, file, idx=None):
-        """ Set the media for a specific player. """
-        if idx is None:
-            idx = self.active_player_id
+    def playlist_play(self, idx=None):
+        """ Play the current track in the playlist. """
+        if idx is not None:
+            if idx < 0 or idx >= len(self.tracks):
+                self.print("error", f"Invalid playlist index: {idx}")
+                return
+            self.playlist_track_index = idx
+        if not self.tracks or self.playlist_track_index >= len(self.tracks):
+            self.print("error", "Playlist is empty or index out of range.")
+            return
 
+        file = self.tracks[self.playlist_track_index]
+        self.print("debug", f"Playing track {self.playlist_track_index}: {file.get('path', 'Unknown')}")
+        self.play_id(file)
+        # set next track load next player
+        self.print("debug", f"Setting next track index to: {self.playlist_track_index + 1}")
+        
+    
+    def set_media(self, file, idx):
+        """Efficiently set the media for a specific player."""
+        if idx < 0 or idx >= len(self.players):
+            self.print("error", "Invalid player index provided.")
+            return
         if not file:
             self.print("error", "No file provided to set media.")
             return
@@ -225,14 +201,30 @@ class Player(QMainWindow):
             return
 
         self.print("debug", f"Setting media for player {idx}: {media_path}")
+
         try:
-            media = self.players[idx].get_instance().media_new(media_path)
-            self.players[idx].set_media(media)
-            self.players[idx].video_set_scale(0)  # Display media in its original size
-            self.print('media_changed', { "idx": idx, "uuid": file.get("uuid", ""), "path": media_path })
-            self.update_player_data(idx, None)  # Update player data after setting media
+            if file.get("is_image", True):
+                # Efficiently display image
+                self.display_image(file, idx)
+            else:
+                # Only set media if it's different from current
+                current_media = self.players[idx].get_media()
+                if not current_media or current_media.get_mrl() != media_path:
+                    media = self.players[idx].get_instance().media_new(media_path)
+                    self.players[idx].set_media(media)
+                self.print('media_changed', { "idx": idx, "uuid": file.get("uuid", ""), "path": media_path })
+                self.update_player_data(idx, None)
         except Exception as e:
             self.print("error", f"Error setting media: {e}")
+            
+    def set_tracks(self, tracks):
+        """ Set the playlist tracks efficiently. """
+        if not isinstance(tracks, list):
+            self.print("error", "Invalid tracks format, expected a list.")
+            return
+
+        self.tracks = tracks
+        self.print("debug", f"Playlist set with {len(tracks)} tracks.")
 
     def on_end_reached(self, idx, event):
         """ Handle end reached event for a specific player. """
@@ -240,71 +232,19 @@ class Player(QMainWindow):
         self.update_player_data(idx, event)
         self.print('end_reached', { "playlist_track_index": self.playlist_track_index, "active_player_id": self.active_player_id, "id": idx })
 
-    def update_player_data(self, id, event):
-        """ VLC 플레이어의 상태를 업데이트합니다. """
-        try:
-            state = str(self.players[id].get_state())  # State 객체를 문자열로 변환
-            self.print("player_data", {
-                "id": id,
-                "event": str(event.type if event else "None"),  # 이벤트 타입을 문자열로 변환
-                "media": self.players[id].get_media().get_mrl() if self.players[id].get_media() else "No media",
-                "state": state,  # 문자열로 변환된 상태
-                "time": self.players[id].get_time(),
-                "duration": self.players[id].get_length(),
-                "position": self.players[id].get_position(),
-                "volume": self.players[id].audio_get_volume(),
-                "rate": self.players[id].get_rate(),
-                "is_playing": self.players[id].is_playing(),
-                "fullscreen": self.players[id].get_fullscreen(),
-            })
-        except Exception as e:
-            self.print("error", f"Error updating player data: {e}")
+
     
-    def set_time(self, time, idx=None):
-        """ Set the playback time for a specific player. """
-        if idx is None:
-            idx = self.active_player_id
-        
-        if not isinstance(time, int) or time < 0:
-            self.print("error", "Invalid time value provided.")
-            return
-
-        try:
-            self.players[idx].set_time(time)
-            self.print("debug", f"Set player {idx} time to: {time}")
-        except Exception as e:
-            self.print("error", f"Error setting time for player {idx}: {e}")
-
-    def print(self, type, data):
-        """ Print the function name and data in a formatted way. """
-        print(json.dumps({"type": type, "data": data}, ensure_ascii=False, separators=(",", ":")), flush=True)
 
 
-    def fade_transition(self, idx):
-        """ 위젯 전환 """
-        from_id = 1 if idx == 0 else 0  # 현재 동작 중인 위젯의 인덱스
-        from_widget = self.player_widgets[from_id]  # 현재 동작 중인 위젯
-        to_widget = self.player_widgets[idx]
-        self.print("debug", f"Starting fade transition: from_widget={from_widget}, to_widget={to_widget}")
-        to_widget.setVisible(True)  # Ensure the target widget is visible before fading in
-        to_widget.raise_()  # Bring the target widget to the front
 
-        from_widget.setVisible(False)
-        if hasattr(from_widget, 'original_pixmap'):
-            self.stop_image(from_id)  # Stop displaying image if it exists
-        if self.players[from_id].is_playing():
-            self.players[from_id].stop()
 
+
+    
     def stop_all(self):
         """모든 플레이어와 위젯을 효율적으로 중지하고 로고를 표시합니다."""
         # 모든 플레이어 중지 및 위젯 숨김
-        for idx, player in enumerate(self.players):
-            if player.is_playing():
-                player.stop()
-            self.player_widgets[idx].clear()
-            self.player_widgets[idx].setVisible(False)
-            if hasattr(self.player_widgets[idx], 'original_pixmap'):
-                del self.player_widgets[idx].original_pixmap
+        for idx in range(len(self.player_widgets)):
+            self.stop(idx)
 
     def update_widget_sizes(self, event):
         """ MainWindow 크기 변경 시 위젯 크기를 업데이트합니다. 각위젯에 이미지가 있으면 함께 크기를 조정합니다. """
