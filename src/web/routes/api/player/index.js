@@ -6,7 +6,8 @@ const {
   pause,
   setFullscreen,
   setBackground,
-  setAudioDevice
+  setAudioDevice,
+  setRepeat
 } = require('@api/player/index.js')
 const { pStatus } = require('@src/_status.js')
 const { dbStatus } = require('@db')
@@ -76,6 +77,17 @@ router.put('/setaudiodevice', async (req, res) => {
   } catch (error) {
     console.error('Error occurred while setting audio device:', error)
     res.status(500).json({ error: 'Failed to set audio device' })
+  }
+})
+
+router.get('/repeat/:mode', async (req, res) => {
+  try {
+    const mode = req.params.mode
+    const r = await setRepeat(mode)
+    res.status(200).json({ message: `Repeat mode set to: ${r}`, mode: r })
+  } catch (error) {
+    console.error('Error occurred while setting repeat mode:', error)
+    res.status(500).json({ error: 'Failed to set repeat mode' })
   }
 })
 

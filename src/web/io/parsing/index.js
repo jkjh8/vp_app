@@ -51,8 +51,8 @@ const parsing = (data) => {
         pStatus.background = data.value
         break
       case 'repeat':
-        pStatus.repeat = data.value
-        sendPlayerCommand('repeat', { mode: pStatus.repeat })
+        // pStatus.repeat = data.value
+        // sendPlayerCommand('repeat', { mode: pStatus.repeat })
         break
       default:
         console.warn('Unknown data type:', data.type)

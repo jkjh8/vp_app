@@ -53,6 +53,14 @@ const getSetupfromDB = async () => {
       case 'playlist':
         pStatus.playlist = setup.playlist || {}
         pStatus.playlistTrackIndex = setup.playlistTrackIndex || 0
+        pStatus.tracks = setup.playlist.tracks || []
+        break
+      case 'repeat':
+        if (pStatus.playlistMode === false && setup.repeat === 'repeat_one') {
+          pStatus.repeat = 'all'
+        } else {
+          pStatus.repeat = setup.repeat || 'none'
+        }
         break
       default:
         logger.warn(`from db Unknown setup type: ${JSON.stringify(setup)}`)

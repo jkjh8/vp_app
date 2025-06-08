@@ -18,10 +18,6 @@ const playid = async (id) => {
   return `Playing file: ${file.path}`
 }
 
-const playlistPlay = async (playlistId, trackIndex) => {
-  // playlistId와 trackIndex가 유효한지 확인
-}
-
 const play = (idx) => {
   logger.info('Received play request without ID')
   sendPlayerCommand('play', { idx })
@@ -119,6 +115,25 @@ const setImageTime = async (time, idx) => {
   return `Image time set to: ${time} for index: ${idx}`
 }
 
+const setRepeat = async (mode = null) => {
+  let modes = ['none', 'all', 'repeat_one']
+  if (pStatus.playlistMode === false) {
+    modes = ['none', 'all']
+  }
+  if (mode && modes.includes(mode)) {
+    pStatus.repeat = mode
+  } else {
+    const currentIdx = modes.indexOf(pStatus.repeat)
+    pStatus.repeat = modes[(currentIdx + 1) % modes.length]
+  }
+  await dbStatus.update(
+    { type: 'repeat' },
+    { $set: { mode: pStatus.repeat } },
+    { upsert: true }
+  )
+  return pStatus.repeat
+}
+
 module.exports = {
   sendPlayerCommand,
   playid,
@@ -132,5 +147,6 @@ module.exports = {
   setLogoSize,
   setBackground,
   setAudioDevice,
-  setImageTime
+  setImageTime,
+  setRepeat
 }
