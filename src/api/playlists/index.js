@@ -67,9 +67,17 @@ const setPlaylist = async (playlistId) => {
     if (!playlist) {
       return reject(new Error('Playlist not found'))
     }
+    pStatus.playlist = playlist || {}
+    pStatus.currentPlaylistId = playlistId
+    pStatus.tracks = playlist.tracks || []
     playlist.tracks = await getTracksWithFileInfo(playlist.tracks)
     sendPlayerCommand('set_tracks', {
       tracks: playlist.tracks
+    })
+    sendMessageToClient('pStatus', {
+      playlist: pStatus.playlist,
+      currentPlaylistId: pStatus.currentPlaylistId,
+      tracks: pStatus.tracks
     })
     resolve(`Playlist set to: ${playlist.name}`)
   })

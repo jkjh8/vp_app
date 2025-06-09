@@ -44,7 +44,8 @@ class Player(QMainWindow):
         self.tracks = []
         self.track_index = int(self.pstatus.get("playlistTrackIndex", 0))
         self.next_track_index = 0
-        self.next_player_index = 1 if self.track_index == 0 else 0
+        self.active_player_id = 0 
+        self.next_player_index = 1 if self.active_player_id == 0 else 0
         self.audio_devices = []
         self.image_time = int(self.pstatus.get("imageTime", 10))
         self.logo_file = self.pstatus.get("logo", {}).get("file", "")
@@ -55,7 +56,6 @@ class Player(QMainWindow):
         self.logo_svg = self.logo_file.lower().endswith(".svg")
         self.background_color = self.pstatus.get("background", "#000000")
         self.fullscreen = bool(self.pstatus.get("fullscreen", False))
-        self.active_player_id = 0
         
         self.instances = []
         self.players = []
@@ -136,7 +136,7 @@ class Player(QMainWindow):
         set_audio_device(self, self.pstatus.get("device", {}).get("audiodevice", "default"))
         
         self.image_timer_instance = QTimer(self)  # QTimer 객체 생성
-        self.image_timer_instance.setSingleShot(True)  # 한 번만 실행되도록 설정
+        self.image_timer_instance.timeout.connect(lambda: self.on_end_reached(self.active_player_id, None))
         
     def print(self, type, data):
         """함수명과 데이터를 효율적으로 포맷하여 출력합니다."""
@@ -195,13 +195,13 @@ class Player(QMainWindow):
         except Exception as e:
             self.print("error", f"Error playing file: {e}")
             
-    def playlist_play(self, idx=0):
+    def playlist_play(self, idx = 0):
         """ Play the current track in the playlist. """
         if idx is not None:
             if idx < 0 or idx >= len(self.tracks):
                 self.print("error", f"Invalid playlist index: {idx}")
                 return
-            self.track_index = idx
+            self.update_track_index(idx)
         if not self.tracks or self.track_index >= len(self.tracks):
             self.print("error", "Playlist is empty or index out of range.")
             return
@@ -224,13 +224,17 @@ class Player(QMainWindow):
             self.image_timer_instance.stop()
             self.print("debug", "Existing image timer stopped.")
 
-        if not self.current_files[self.next_player_index].get("is_image", False):
-            self.players[self.next_player_index].play()
+        if self.current_files[self.next_player_index].get("is_image", False):
+            self.track_index = self.next_track_index  # Update track_index for image playback
+            self.update_track_index(self.track_index)
         else:
-            self.image_timer()
+            self.players[self.next_player_index].play()
+            self.track_index = self.next_track_index  # Update track_index when playback starts
+            self.update_track_index(self.track_index)
+
         self.fade_transition(self.next_player_index)
-        
         self.next_file_load()
+        self.image_timer()
 
 
     def next_file_load(self, idx=None):
@@ -249,24 +253,16 @@ class Player(QMainWindow):
         self.set_media(self.tracks[self.next_track_index], self.next_player_index)
         self.print("debug", f"Updated next track index to: {self.next_track_index}")
 
-        # Ensure track_index matches next_track_index after loading
-        self.track_index = self.next_track_index
-        self.update_track_index(self.track_index)
-        self.print("debug", f"Synchronized track index to: {self.track_index}")
-
     def image_timer(self):
         """ 플레이 리스트 모드에서 이미지 재생 시 타이머를 설정합니다. """
-        # 기존 타이머 중지
+        # 기존 타이머 중지 및 안전한 신호 해제
         if self.image_timer_instance.isActive():
             self.image_timer_instance.stop()
-            self.print("debug", "Existing image timer stopped.")
-
-        # 기존 시그널 연결 제거
-        try:
-            self.image_timer_instance.timeout.disconnect()
-            self.print("debug", "Disconnected previous timeout signal.")
-        except TypeError:
-            self.print("debug", "No previous timeout signal to disconnect.")
+            try:
+                self.image_timer_instance.timeout.disconnect()
+                self.print("debug", "Existing image timer stopped and disconnected.")
+            except RuntimeError:
+                self.print("debug", "Timeout signal was not connected, skipping disconnect.")
 
         if not self.playlist_mode:
             self.print("error", "Image timer can only be set in playlist mode.")

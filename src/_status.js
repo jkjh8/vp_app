@@ -8,6 +8,7 @@ let pStatus = {
   playlistfile: '',
   playlist: {},
   tracks: [],
+  currentPlaylistId: null,
   device: {
     audiodevice: '',
     audiodevices: []

@@ -21,14 +21,28 @@ function handleLogMessage(level, prefix, data) {
   }
 }
 
+let lastEndReachedEvent = null
+
 function handleEndReached(data) {
+  const eventKey = `${data.playlist_track_index}-${data.active_player_id}`
+  if (lastEndReachedEvent === eventKey) {
+    logger.warn(`Duplicate end_reached event ignored: ${eventKey}`)
+    return
+  }
+  lastEndReachedEvent = eventKey
+
   logger.info(`End reached event received: ${JSON.stringify(data)}`)
   pStatus.playlistTrackIndex = data.playlist_track_index
   pStatus.activePlayerId = data.active_player_id
+  sendMessageToClient('pStatus', {
+    playlistTrackIndex: pStatus.playlistTrackIndex,
+    activePlayerId: pStatus.activePlayerId
+  })
+
   switch (pStatus.repeat) {
     case 'none':
       if (pStatus.playlistMode) {
-        if (pStatus.playlistTrackIndex !== 0) {
+        if (pStatus.playlistTrackIndex !== pStatus.tracks.length - 1) {
           logger.info(
             `End of track reached(none), moving to next track in playlist. Current index: ${pStatus.playlistTrackIndex}, Total tracks: ${pStatus.tracks.length}`
           )
@@ -66,6 +80,7 @@ function handleEndReached(data) {
 
 async function handleMediaChanged(data) {
   logger.info(`Media changed event received: ${JSON.stringify(data)}`)
+
   if (data.uuid) {
     const file = await dbFiles.findOne({ uuid: data.uuid })
     pStatus.player[data.idx] = { ...pStatus.player[data.idx], file: file }
@@ -73,12 +88,21 @@ async function handleMediaChanged(data) {
       `Media changed for player ${data.idx}, file: ${file.filename}, uuid: ${file.uuid}`
     )
   }
-  if (data.playlist_track_index) {
+
+  if (data.playlist_track_index !== undefined) {
+    const previousIndex = pStatus.playlistTrackIndex
     pStatus.playlistTrackIndex = data.playlist_track_index
+
+    if (previousIndex === pStatus.playlistTrackIndex) {
+      logger.warn('Duplicate media_changed event detected, ignoring.')
+      return
+    }
+
     pStatus.player[data.idx] = {
       ...pStatus.player[data.idx],
       file: pStatus.tracks[pStatus.playlistTrackIndex]
     }
+
     logger.info(
       `Media changed, current track set to index ${pStatus.playlistTrackIndex}, file: ${pStatus.player[data.idx].file.filename}`
     )
