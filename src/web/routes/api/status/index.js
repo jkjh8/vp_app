@@ -46,7 +46,7 @@ router.get('/image_time/:time', async (req, res) => {
   try {
     res.json({
       success: true,
-      message: await setImageTime(req.params.time),
+      message: await setImageTime(Number(req.params.time)),
       pStatus
     })
   } catch (error) {

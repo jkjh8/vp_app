@@ -5,11 +5,6 @@ let pStatus = {
   repeat: 'none',
   nics: [],
   image_time: 10,
-  current: {
-    id: '',
-    name: '',
-    type: ''
-  },
   playlistfile: '',
   playlist: {},
   tracks: [],

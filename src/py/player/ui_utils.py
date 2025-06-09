@@ -4,11 +4,9 @@ def set_background_color(self, color):
         self.setStyleSheet(f"background-color: {self.background_color};")  # 메인 윈도우 배경색 변경
         for widget in self.player_widgets:
             widget.setStyleSheet(f"background-color: {self.background_color};")
-        self.print("debug", f"Background color set to {self.background_color}")
 
 def set_fullscreen(self, value):
     """ Set the fullscreen mode for the player. """
-    self.print("debug", f"Setting fullscreen mode to: {value}")
     if value:
         self.showFullScreen()
     else:
@@ -22,10 +20,11 @@ def fade_transition(self, idx):
         from_id = 1 if idx == 0 else 0  # 현재 동작 중인 위젯의 인덱스
         from_widget = self.player_widgets[from_id]  # 현재 동작 중인 위젯
         to_widget = self.player_widgets[idx]
-        self.print("debug", f"Starting fade transition: from_widget={from_widget}, to_widget={to_widget}")
         to_widget.setVisible(True)  # Ensure the target widget is visible before fading in
         to_widget.raise_()  # Bring the target widget to the front
-
+        self.update_active_player_id(idx)  # Update the active player ID
+        
+        
         from_widget.setVisible(False)
         if hasattr(from_widget, 'original_pixmap'):
             self.stop_image(from_id)  # Stop displaying image if it exists

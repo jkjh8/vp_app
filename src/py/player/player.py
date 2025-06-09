@@ -1,15 +1,15 @@
 import os, sys, json, vlc, win32process, win32con
 from PySide6.QtWidgets import QApplication, QMainWindow, QLabel, QVBoxLayout, QWidget, QGraphicsOpacityEffect
-from PySide6.QtCore import QTimer, Qt, QPropertyAnimation
+from PySide6.QtCore import QTimer, Qt
 from PySide6.QtGui import QPixmap, QIcon
-from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtSvgWidgets import QSvgWidget
 from stdin import stdinReaderr
 from ui_utils import set_background_color, set_fullscreen, fade_transition
 from event_handler import handle_stdin_message
 from logo_utils import set_logo_center, set_logo_size, update_logo_size, set_logo_file
 from audio_utils import set_audio_device, get_audio_devices
-from player_utils import init_players, init_players_events, update_active_player_id, update_player_data, stop, set_time
+from player_utils import init_players, init_players_events, update_active_player_id, update_player_data, stop, set_time, pause, stop_all, set_media
+from image_util import display_image, update_image_size, stop_image, set_image_time
 
 class Player(QMainWindow):
     def __init__(self, pstatus=None):
@@ -42,7 +42,9 @@ class Player(QMainWindow):
         self.pstatus = pstatus or {}
         self.playlist_mode = bool(self.pstatus.get("playlistMode", False))
         self.tracks = []
-        self.playlist_track_index = int(self.pstatus.get("playlistTrackIndex", 0))
+        self.track_index = int(self.pstatus.get("playlistTrackIndex", 0))
+        self.next_track_index = 0
+        self.next_player_index = 1 if self.track_index == 0 else 0
         self.audio_devices = []
         self.image_time = int(self.pstatus.get("imageTime", 10))
         self.logo_file = self.pstatus.get("logo", {}).get("file", "")
@@ -74,20 +76,43 @@ class Player(QMainWindow):
         self.set_logo_size = lambda size: set_logo_size(self, size)
         self.update_logo_size = lambda: update_logo_size(self)
         self.set_logo_visible = lambda visible: setattr(self.logo_widget, 'setVisible', visible)
-        
+
         self.set_logo_file(self.logo_file)
         if not self.logo_file or not os.path.exists(self.logo_file):
-            self.print("error", f"Logo file does not exist: {self.logo_file}")
-        else:
-            self.print("debug", f"Logo file exists: {self.logo_file}")
-            self.print("debug", "Attempting to initialize SVG logo widget." if self.logo_svg else "Attempting to initialize Pixmap logo widget.")
+            self.print("error", f"Logo file does not exist or is invalid: {self.logo_file}")
+            return
+
+        # Initialize logo widget based on file type
+        try:
+            if self.logo_svg:
+                self.logo_widget = QSvgWidget(self.logo_file, self)
+                self.logo_widget.setGeometry(0, 0, self.logo_width, self.logo_height)
+                self.print("debug", "SVG logo widget initialized successfully.")
+            else:
+                pixmap = QPixmap(self.logo_file)
+                if pixmap.isNull():
+                    self.print("error", "Failed to load image: Pixmap is null.")
+                    return
+                self.logo_widget.setPixmap(pixmap.scaled(self.logo_width, self.logo_height, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                self.print("debug", "Pixmap logo widget initialized successfully.")
+        except Exception as e:
+            self.print("error", f"Error initializing logo widget: {e}")
+        
+        # Initialize image utilities
+        self.display_image = lambda file, idx: display_image(self, file, idx)
+        self.update_image_size = lambda: update_image_size(self)
+        self.stop_image = lambda idx=None: stop_image(self, idx)
+        self.set_image_time = lambda time: set_image_time(self, time)
 
         # Initialize VLC players and audio
         self.init_players = lambda: init_players(self)
         self.init_players_events = lambda: init_players_events(self)
         self.update_active_player_id = lambda idx: update_active_player_id(self, idx)
         self.update_player_data = lambda id, event: update_player_data(self, id, event)
+        self.set_media = lambda file, idx=None: set_media(self, file, idx)
+        self.pause = lambda idx=0: pause(self, idx)
         self.stop = lambda idx=None: stop(self, idx)
+        self.stop_all = lambda: stop_all(self)
         self.set_time = lambda time, idx=None: set_time(self, time, idx)
         
         self.update_active_player_id(self.active_player_id)
@@ -95,11 +120,6 @@ class Player(QMainWindow):
         self.init_players()
         self.init_players_events()
         
-        # audio device management
-        self.set_audio_device = lambda device_id: set_audio_device(self, device_id)
-        self.get_audio_devices = lambda: get_audio_devices(self)
-        get_audio_devices(self)
-        set_audio_device(self, self.pstatus.get("device", {}).get("audiodevice", "default"))
         
         # fullscreen mode
         self.set_fullscreen = lambda value: set_fullscreen(self, value)
@@ -108,9 +128,27 @@ class Player(QMainWindow):
         # fade transition
         self.fade_transition = lambda idx: fade_transition(self, idx)
         
+        # audio device management
+        self.set_audio_device = lambda device_id: set_audio_device(self, device_id)
+        self.get_audio_devices = lambda: get_audio_devices(self)
+        get_audio_devices(self)
+        # set audio device 확인 필요
+        set_audio_device(self, self.pstatus.get("device", {}).get("audiodevice", "default"))
+        
+        self.image_timer_instance = QTimer(self)  # QTimer 객체 생성
+        self.image_timer_instance.setSingleShot(True)  # 한 번만 실행되도록 설정
+        
     def print(self, type, data):
         """함수명과 데이터를 효율적으로 포맷하여 출력합니다."""
         print(json.dumps({"type": type, "data": data}, ensure_ascii=False, separators=(",", ":")), flush=True)
+        
+    def update_track_index(self, idx):
+        """ Update the current track index. """
+        if idx < 0 or idx >= len(self.tracks):
+            self.print("error", f"Invalid track index: {idx}")
+            return
+        self.track_index = idx
+        self.print("track_index", { "index": self.track_index })
 
     def set_playlist_mode(self, value):
         """ Set the playlist mode (on/off). """
@@ -138,15 +176,6 @@ class Player(QMainWindow):
             self.fade_transition(idx)
             self.print("debug", f"Player widget {idx} shown with fade transition.")
 
-
-    def pause(self, idx=0):
-        """ Pause a specific player by index. """
-        if idx < 0 or idx >= len(self.players):
-            self.print("error", f"Invalid player index: {idx}")
-            return
-
-        self.players[self.active_player_id].pause()
-        
     def play_id(self, file):
         """Efficiently play a specific file by ID or path."""
         idx = self.active_player_id
@@ -157,8 +186,6 @@ class Player(QMainWindow):
             
         # set Media file for the player
         self.set_media(file, idx)
-        # Update the current file for the player
-        self.current_files[idx] = file
 
         try:
             if file.get("is_image") == False:
@@ -168,55 +195,96 @@ class Player(QMainWindow):
         except Exception as e:
             self.print("error", f"Error playing file: {e}")
             
-    def playlist_play(self, idx=None):
+    def playlist_play(self, idx=0):
         """ Play the current track in the playlist. """
         if idx is not None:
             if idx < 0 or idx >= len(self.tracks):
                 self.print("error", f"Invalid playlist index: {idx}")
                 return
-            self.playlist_track_index = idx
-        if not self.tracks or self.playlist_track_index >= len(self.tracks):
+            self.track_index = idx
+        if not self.tracks or self.track_index >= len(self.tracks):
             self.print("error", "Playlist is empty or index out of range.")
             return
 
-        file = self.tracks[self.playlist_track_index]
-        self.print("debug", f"Playing track {self.playlist_track_index}: {file.get('path', 'Unknown')}")
+        file = self.tracks[self.track_index]
         self.play_id(file)
         # set next track load next player
-        self.print("debug", f"Setting next track index to: {self.playlist_track_index + 1}")
+        self.next_file_load()
+        if self.current_files[self.active_player_id].get("is_image", False):
+            # If the current file is an image, start the image timer
+            self.image_timer()
+        # self.image_timer()
+
+    def next(self):
+        if not self.playlist_mode:
+            self.print("error", "Next track can only be used in playlist mode.")
+            return
+
+        if self.image_timer_instance.isActive():
+            self.image_timer_instance.stop()
+            self.print("debug", "Existing image timer stopped.")
+
+        if not self.current_files[self.next_player_index].get("is_image", False):
+            self.players[self.next_player_index].play()
+        else:
+            self.image_timer()
+        self.fade_transition(self.next_player_index)
         
-    
-    def set_media(self, file, idx):
-        """Efficiently set the media for a specific player."""
-        if idx < 0 or idx >= len(self.players):
-            self.print("error", "Invalid player index provided.")
-            return
-        if not file:
-            self.print("error", "No file provided to set media.")
-            return
+        self.next_file_load()
 
-        media_path = file.get("path", "")
-        if not media_path:
-            self.print("error", "Invalid media path provided.")
-            return
 
-        self.print("debug", f"Setting media for player {idx}: {media_path}")
+    def next_file_load(self, idx=None):
+        """ Load the next file in the playlist. """
+        self.print("debug", f"Current track index: {self.track_index}, Next track index: {self.next_track_index}")
 
+        if idx is not None:
+            self.next_track_index = idx
+        else:
+            self.next_track_index = self.track_index + 1
+
+        if self.next_track_index >= len(self.tracks):
+            self.next_track_index = 0
+
+        self.next_player_index = 1 if self.active_player_id == 0 else 0
+        self.set_media(self.tracks[self.next_track_index], self.next_player_index)
+        self.print("debug", f"Updated next track index to: {self.next_track_index}")
+
+        # Ensure track_index matches next_track_index after loading
+        self.track_index = self.next_track_index
+        self.update_track_index(self.track_index)
+        self.print("debug", f"Synchronized track index to: {self.track_index}")
+
+    def image_timer(self):
+        """ 플레이 리스트 모드에서 이미지 재생 시 타이머를 설정합니다. """
+        # 기존 타이머 중지
+        if self.image_timer_instance.isActive():
+            self.image_timer_instance.stop()
+            self.print("debug", "Existing image timer stopped.")
+
+        # 기존 시그널 연결 제거
         try:
-            if file.get("is_image", True):
-                # Efficiently display image
-                self.display_image(file, idx)
-            else:
-                # Only set media if it's different from current
-                current_media = self.players[idx].get_media()
-                if not current_media or current_media.get_mrl() != media_path:
-                    media = self.players[idx].get_instance().media_new(media_path)
-                    self.players[idx].set_media(media)
-                self.print('media_changed', { "idx": idx, "uuid": file.get("uuid", ""), "path": media_path })
-                self.update_player_data(idx, None)
-        except Exception as e:
-            self.print("error", f"Error setting media: {e}")
-            
+            self.image_timer_instance.timeout.disconnect()
+            self.print("debug", "Disconnected previous timeout signal.")
+        except TypeError:
+            self.print("debug", "No previous timeout signal to disconnect.")
+
+        if not self.playlist_mode:
+            self.print("error", "Image timer can only be set in playlist mode.")
+            return
+
+        if not self.tracks or self.track_index >= len(self.tracks):
+            self.print("debug", "Playlist is empty or index out of range.")
+            return
+
+        if not self.current_files[self.active_player_id].get("is_image", False):
+            self.print("debug", "Current file is not an image, skipping image timer setup.")
+            return
+
+        # 새로운 타이머 시작
+        self.image_timer_instance.timeout.connect(lambda: self.on_end_reached(self.active_player_id, None))
+        self.image_timer_instance.start(self.image_time * 1000)
+        self.print("debug", f"Image timer started for {self.image_time} seconds.")
+
     def set_tracks(self, tracks):
         """ Set the playlist tracks efficiently. """
         if not isinstance(tracks, list):
@@ -229,22 +297,18 @@ class Player(QMainWindow):
     def on_end_reached(self, idx, event):
         """ Handle end reached event for a specific player. """
         self.print("info", f"Player {idx} has reached the end.")
-        self.update_player_data(idx, event)
-        self.print('end_reached', { "playlist_track_index": self.playlist_track_index, "active_player_id": self.active_player_id, "id": idx })
 
+        # 디버깅 로그 추가
+        self.print("debug", f"Event data received: {event}")
 
-    
-
-
-
-
-
-    
-    def stop_all(self):
-        """모든 플레이어와 위젯을 효율적으로 중지하고 로고를 표시합니다."""
-        # 모든 플레이어 중지 및 위젯 숨김
-        for idx in range(len(self.player_widgets)):
-            self.stop(idx)
+        try:
+            self.update_player_data(idx, event)
+            self.print('end_reached', {
+                "playlist_track_index": self.track_index,
+                "active_player_id": self.active_player_id,
+            })
+        except Exception as e:
+            self.print("error", f"Error handling end reached event: {e}")
 
     def update_widget_sizes(self, event):
         """ MainWindow 크기 변경 시 위젯 크기를 업데이트합니다. 각위젯에 이미지가 있으면 함께 크기를 조정합니다. """
@@ -266,85 +330,7 @@ class Player(QMainWindow):
         self.stdin_reader.stop()
         sys.exit(0)
             
-    def display_image(self, file, idx=None):
-        """Efficiently display an image on a specific player widget using PySide."""
-        idx = self.active_player_id if idx is None else idx
-        image_path = file.get("path")
-        self.print("debug", f"Displaying image on player widget {idx}: {image_path}")
-
-        try:
-            # Stop any media currently playing on the player
-            self.stop(idx)
-
-            # Load and cache the pixmap only if the path changed
-            widget = self.player_widgets[idx]
-            if not hasattr(widget, 'original_pixmap') or not isinstance(widget.original_pixmap, QPixmap):
-                pixmap = QPixmap(image_path)
-                if pixmap.isNull():
-                    self.print("error", f"Failed to load image: {image_path}")
-                    return
-                widget.original_pixmap = pixmap
-            else:
-                pixmap = widget.original_pixmap
-
-            self.print('media_changed', { "idx": idx, "uuid": file.get("uuid", ""), "path": image_path })
-
-            # Scale the pixmap to fit the QLabel while maintaining aspect ratio
-            scaled_pixmap = pixmap.scaled(
-                widget.width(),
-                widget.height(),
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation
-            )
-
-            widget.setPixmap(scaled_pixmap)
-            widget.setAlignment(Qt.AlignCenter)
-            widget.setVisible(True)
-            self.print("player_data", {
-                "id": idx,
-                "event": "display_image",
-                "media": image_path,
-                "state": "displaying_image",
-                "time": 0,
-                "duration": 0,
-                "position": 0,
-                "is_playing": 1,
-            })
-        except Exception as e:
-            self.print("error", f"Error displaying image: {e}")
-            
-    def stop_image(self, idx=None):
-        """Efficiently stop displaying the image on a specific player widget."""
-        idx = self.active_player_id if idx is None else idx
-        widget = self.player_widgets[idx]
-        self.print("debug", f"Stopping image display on player widget {idx}")
-        widget.clear()
-        widget.setVisible(False)
-        if hasattr(widget, 'original_pixmap'):
-            del widget.original_pixmap
-        self.print("player_data", {
-            "id": idx,
-            "event": "stop_image",
-            "media": "",
-            "state": "stopped_image",
-            "time": 0,
-            "duration": 0,
-            "position": 0,
-            "is_playing": 0,
-        })
-        
-    def update_image_size(self):
-        for idx, widget in enumerate(self.player_widgets):
-            if hasattr(widget, 'original_pixmap') and widget.original_pixmap:
-                pixmap = widget.original_pixmap
-                scaled_pixmap = pixmap.scaled(
-                    widget.width(),
-                    widget.height(),
-                    Qt.KeepAspectRatio,
-                    Qt.SmoothTransformation
-                )
-                widget.setPixmap(scaled_pixmap)
-                widget.setAlignment(Qt.AlignCenter)
+    
             
 if __name__ == "__main__":
     vp_pstatus_json = os.environ.get("VP_PSTATUS")

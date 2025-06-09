@@ -20,6 +20,7 @@ def init_players_events(self):
     try:
         def make_handler(method, idx):
             return lambda event: method(idx, event)
+
         for idx, player in enumerate(self.players):
             em = player.event_manager()
             em.event_attach(
@@ -48,6 +49,47 @@ def init_players_events(self):
 def update_active_player_id(self, idx):
     self.active_player_id = idx
     self.print("active_player_id", { "id": self.active_player_id })
+    
+def set_media(self, file, idx):
+    """Efficiently set the media for a specific player."""
+    if idx < 0 or idx >= len(self.players):
+        self.print("error", "Invalid player index provided.")
+        return
+    if not file:
+        self.print("error", "No file provided to set media.")
+        return
+
+    media_path = file.get("path", "")
+    if not media_path:
+        self.print("error", "Invalid media path provided.")
+        return
+
+    self.print("debug", f"Setting media for player {idx}: {media_path}")
+    # Update the current file for the player
+    self.current_files[idx] = file
+
+    try:
+        if file.get("is_image", True):
+            # Efficiently display image
+            self.display_image(file, idx)
+        else:
+            # Only set media if it's different from current
+            current_media = self.players[idx].get_media()
+            if not current_media or current_media.get_mrl() != media_path:
+                media = self.players[idx].get_instance().media_new(media_path)
+                self.players[idx].set_media(media)
+            self.print('media_changed', { "idx": idx, "uuid": file.get("uuid", ""), "path": media_path })
+            self.update_player_data(idx, None)
+    except Exception as e:
+        self.print("error", f"Error setting media: {e}")
+
+def pause(self, idx=0):
+    """ Pause a specific player by index. """
+    if idx < 0 or idx >= len(self.players):
+        self.print("error", f"Invalid player index: {idx}")
+        return
+
+    self.players[self.active_player_id].pause()
         
 def stop(self, idx=None):
     if idx is None:
@@ -59,6 +101,12 @@ def stop(self, idx=None):
         self.players[idx].stop()
     self.player_widgets[idx].setVisible(False)  # Hide the player widget
     self.print("debug", f"Player {idx} stopped.")
+    
+def stop_all(self):
+    """모든 플레이어와 위젯을 효율적으로 중지하고 로고를 표시합니다."""
+    # 모든 플레이어 중지 및 위젯 숨김
+    for idx in range(len(self.player_widgets)):
+        self.stop(idx)
     
 def set_time(self, time, idx=None):
     """효율적으로 특정 플레이어의 재생 시간을 설정합니다."""

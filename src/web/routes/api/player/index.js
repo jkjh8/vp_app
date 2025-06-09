@@ -7,7 +7,8 @@ const {
   setFullscreen,
   setBackground,
   setAudioDevice,
-  setRepeat
+  setRepeat,
+  setNext
 } = require('@api/player/index.js')
 const { pStatus } = require('@src/_status.js')
 const { dbStatus } = require('@db')
@@ -88,6 +89,15 @@ router.get('/repeat/:mode', async (req, res) => {
   } catch (error) {
     console.error('Error occurred while setting repeat mode:', error)
     res.status(500).json({ error: 'Failed to set repeat mode' })
+  }
+})
+
+router.get('/next', async (req, res) => {
+  try {
+    res.status(200).json({ message: await setNext() })
+  } catch (error) {
+    console.error('Error occurred while setting next track:', error)
+    res.status(500).json({ error: 'Failed to set next track' })
   }
 })
 

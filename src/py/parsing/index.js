@@ -22,25 +22,24 @@ function handleLogMessage(level, prefix, data) {
 }
 
 function handleEndReached(data) {
-  pStatus.playlistTrackIndex = data.playlist_index ?? 0
-  const idx = data.id ?? 0
+  logger.info(`End reached event received: ${JSON.stringify(data)}`)
+  pStatus.playlistTrackIndex = data.playlist_track_index
+  pStatus.activePlayerId = data.active_player_id
   switch (pStatus.repeat) {
     case 'none':
       if (pStatus.playlistMode) {
-        if (
-          pStatus.playlist.length > 0 &&
-          data.playlist_index < pStatus.playlist.length - 1
-        ) {
+        if (pStatus.playlistTrackIndex !== 0) {
           logger.info(
-            `End of track reached(none), moving to next track in playlist. Current index: ${data.playlist_index}`
+            `End of track reached(none), moving to next track in playlist. Current index: ${pStatus.playlistTrackIndex}, Total tracks: ${pStatus.tracks.length}`
           )
           sendPlayerCommand('next', {})
         } else {
-          sendPlayerCommand('stop', { idx })
+          sendPlayerCommand('stop_all', {})
+          sendPlayerCommand('set_track_index', { index: 0 })
         }
       } else {
         logger.info('End of track reached, stopping playback.')
-        sendPlayerCommand('stop', { idx })
+        sendPlayerCommand('stop', { idx: pStatus.activePlayerId })
       }
       break
     case 'all':
@@ -49,18 +48,18 @@ function handleEndReached(data) {
         sendPlayerCommand('next', {})
       } else {
         logger.info('End of track reached, stopping playback.')
-        sendPlayerCommand('stop', { idx })
+        sendPlayerCommand('stop', { idx: pStatus.activePlayerId })
         sendPlayerCommand('next', {})
       }
       break
     case 'single':
       logger.info('End of single track reached, stopping playback.')
-      sendPlayerCommand('stop', { idx })
+      sendPlayerCommand('stop', { idx: pStatus.activePlayerId })
       break
     case 'repeat_one':
       logger.info('Repeat one mode, restarting current track.')
-      sendPlayerCommand('stop', { idx })
-      sendPlayerCommand('play', { idx })
+      sendPlayerCommand('stop', { idx: pStatus.activePlayerId })
+      sendPlayerCommand('play', { idx: pStatus.activePlayerId })
       break
   }
 }
@@ -87,7 +86,7 @@ async function handleMediaChanged(data) {
 
   sendMessageToClient('pStatus', {
     player: pStatus.player,
-    playerTrackIndex: pStatus.playlistTrackIndex
+    playlistTrackIndex: pStatus.playlistTrackIndex
   })
 }
 
@@ -212,16 +211,14 @@ const parsing = async (data) => {
           )
           logger.info(`Playlist mode set to ${pStatus.playlistMode}`)
           break
-        case 'current_track':
-          console.log('Received current_track message from Python:', data)
-          const uuid = data.uuid || null
-          if (uuid) {
-            const file = await dbFiles.findOne({ uuid })
-            if (file) {
-              pStatus.current = file
-              sendMessageToClient('pStatus', { current: file })
-            }
-          }
+        case 'track_index':
+          pStatus.playlistTrackIndex = data.index || 0
+          sendMessageToClient('pStatus', {
+            playlistTrackIndex: pStatus.playlistTrackIndex
+          })
+          logger.info(
+            `Playlist track index set to ${pStatus.playlistTrackIndex}`
+          )
           break
 
         default:

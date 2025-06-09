@@ -12,7 +12,6 @@ const playid = async (id) => {
   if (!file) {
     throw new Error('Player not found')
   }
-  pStatus.current = file
   sendPlayerCommand('playid', { file: file })
   setPlaylistMode(false)
   return `Playing file: ${file.path}`
@@ -134,6 +133,12 @@ const setRepeat = async (mode = null) => {
   return pStatus.repeat
 }
 
+const setNext = async () => {
+  logger.info('Setting next track in playlist')
+  sendPlayerCommand('next', {})
+  return 'Next track set'
+}
+
 module.exports = {
   sendPlayerCommand,
   playid,
@@ -148,5 +153,6 @@ module.exports = {
   setBackground,
   setAudioDevice,
   setImageTime,
-  setRepeat
+  setRepeat,
+  setNext
 }

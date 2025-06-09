@@ -26,14 +26,17 @@ def handle_stdin_message(self, data):
         "pause": lambda data: self.pause(int(data.get("idx", 0))),
         "stop": lambda data: self.stop(int(data.get("idx", 0))),
         "stop_all": lambda data: self.stop_all(),
-        "set_time": lambda data: self.set_time(data.get("time", 0), data.get("idx", 0)),
+        "set_time": lambda data: self.set_time(int(data.get("time", 0)), int(data.get("idx", 0))),
         # audio devices
         "set_audio_device": lambda data: self.set_audio_device(data.get("device_id", "")),
         "get_audio_devices": lambda data: self.get_audio_devices(),
         # playerlist
-        "playlist_mode": lambda data: self.set_playlist_mode(data.get("value", False)),
-        "playlist_play": lambda data: self.playlist_play(data.get("idx", 0)),
+        "playlist_mode": lambda data: self.set_playlist_mode(bool(data.get("value", False))),
+        "playlist_play": lambda data: self.playlist_play(int(data.get("idx", 0))),
         "set_tracks": lambda data: self.set_tracks(data.get("tracks", [])),
+        "image_time": lambda data: self.set_image_time(int(data.get("time", 0))),
+        "set_track_index": lambda data: self.update_track_index(int(data.get("index", 0))),
+        "next": lambda data: self.next(),
         # etc
         "set_fullscreen": lambda data: self.set_fullscreen(data.get("value", False)),
         "background_color": lambda data: self.set_background_color(data.get("color", "#000000")),
@@ -41,6 +44,8 @@ def handle_stdin_message(self, data):
     func = dispatch.get(command)
     if func:
         try:
+            if command == "set_track_index":
+                self.print("debug", "Dispatching 'track_index' command to set_track_index")
             func(data)
         except Exception as e:
             self.print("error", f"Error executing command '{command}': {e}")

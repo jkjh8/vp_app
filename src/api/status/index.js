@@ -62,6 +62,9 @@ const getSetupfromDB = async () => {
           pStatus.repeat = setup.repeat || 'none'
         }
         break
+      case 'image_time':
+        pStatus.imageTime = setup.time || 5
+        break
       default:
         logger.warn(`from db Unknown setup type: ${JSON.stringify(setup)}`)
     }
