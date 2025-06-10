@@ -106,27 +106,30 @@ def set_time(self, time, idx=None):
         self.print("error", f"Error setting time for player {idx}: {e}")
         
 def image_timer(self):
-    """ 플레이 리스트 모드에서 이미지 재생 시 타이머를 설정합니다. """
-    # 기존 타이머 중지 및 안전한 신호 해제
-    if self.image_timer_instance.isActive():
-        self.image_timer_instance.stop()
+    """효율적으로 플레이리스트 모드에서 이미지 재생 시 타이머를 설정합니다."""
+    timer = self.image_timer_instance
+
+    if timer.isActive():
+        timer.stop()
         try:
-            self.image_timer_instance.timeout.disconnect()
-            self.print("debug", "Existing image timer stopped and disconnected.")
+            timer.timeout.disconnect()
+            self.print("debug", "기존 이미지 타이머 중지 및 disconnect 완료.")
         except RuntimeError:
-            self.print("debug", "Timeout signal was not connected, skipping disconnect.")
+            self.print("debug", "timeout 신호가 연결되어 있지 않아 disconnect 생략.")
 
     if not self.playlist_mode:
-        self.print("error", "Image timer can only be set in playlist mode.")
+        self.print("error", "이미지 타이머는 플레이리스트 모드에서만 설정할 수 있습니다.")
         return
 
     if not self.tracks or self.track_index >= len(self.tracks):
-        self.print("debug", "Playlist is empty or index out of range.")
+        self.print("debug", "플레이리스트가 비어있거나 인덱스가 범위를 벗어남.")
         return
 
-    if not self.current_files[self.active_player_id].get("is_image", False):
-        self.print("debug", "Current file is not an image, skipping image timer setup.")
+    current_file = self.current_files[self.active_player_id]
+    if not current_file.get("is_image", False):
+        self.print("debug", "현재 파일이 이미지가 아니므로 이미지 타이머 설정 생략.")
         return
 
-    self.image_timer_instance.start(self.image_time * 1000)
-    self.print("debug", f"Image timer started for {self.image_time} seconds.")
+    show_time = current_file.get("time", self.image_time)
+    timer.start(show_time * 1000)
+    self.print("debug", f"이미지 타이머 {show_time}초로 시작됨.")
