@@ -79,7 +79,11 @@ const dbStatus = {
   },
   async update(query, update, options = {}) {
     const { db } = require('./index')
-    return await db.status.update(query, update, options)
+    return await db.status.update(
+      query,
+      { $set: update },
+      { ...options, upsert: true }
+    )
   },
   async remove(query, options = {}) {
     const { db } = require('./index')
@@ -103,7 +107,11 @@ const dbFiles = {
   },
   async update(query, update, options = {}) {
     const { db } = require('./index')
-    return await db.files.update(query, update, options)
+    return await db.files.update(
+      query,
+      { $set: update },
+      { ...options, upsert: true }
+    )
   },
   async remove(query, options = {}) {
     const { db } = require('./index')
@@ -127,7 +135,14 @@ const dbPlaylists = {
   },
   async update(query, update, options = {}) {
     const { db } = require('./index')
-    return await db.playlists.update(query, update, options)
+    return await db.playlists.update(
+      query,
+      { $set: update },
+      {
+        ...options,
+        upsert: true
+      }
+    )
   },
   async remove(query, options = {}) {
     const { db } = require('./index')

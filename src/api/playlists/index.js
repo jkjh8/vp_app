@@ -103,15 +103,21 @@ const setPlaylistMode = async (mode) => {
   })
 }
 
-const playlistPlay = async (playlistId, trackIndex = 0) => {
+const playlistPlay = async (playlistId, trackIndex) => {
+  logger.warn('playlistPlay called with:' + { playlistId, trackIndex })
+
   if (!playlistId) {
     throw new Error('Playlist ID is required')
   }
+
   logger.info(await setPlaylist(playlistId))
   logger.info(await setPlaylistMode(true))
+
+  pStatus.currentPlaylistId = playlistId
+  pStatus.playlistTrackIndex = trackIndex
+
   sendPlayerCommand('playlist_play', {
-    playlistId,
-    trackIndex
+    idx: trackIndex
   })
 }
 

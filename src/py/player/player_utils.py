@@ -1,4 +1,14 @@
+from email.header import make_header
 import vlc
+
+def make_handler(func, *args):
+    """Create a handler function that calls func with args."""
+    def handler(event):
+        try:
+            func(*args, event)
+        except Exception as e:
+            print(f"Error in handler: {e}")
+    return handler
 
 def init_players(self):
     # 공통 옵션을 변수로 선언
@@ -14,15 +24,13 @@ def init_players(self):
     # 각 플레이어에 해당하는 위젯에 바인딩
     for idx, player in enumerate(self.players):
         player.set_hwnd(int(self.player_widgets[idx].winId()))
-    self.print("debug", "Initialized VLC players with double instances")
+        player.audio_set_volume(100)  # 기본 볼륨 설정
     
 def init_players_events(self):
     try:
-        def make_handler(method, idx):
-            return lambda event: method(idx, event)
-
         for idx, player in enumerate(self.players):
             em = player.event_manager()
+            em.event_detach(vlc.EventType.MediaPlayerEndReached)
             em.event_attach(
                 vlc.EventType.MediaPlayerEndReached,
                 make_handler(self.on_end_reached, idx)
@@ -37,7 +45,7 @@ def init_players_events(self):
                 vlc.EventType.MediaPlayerPlaying,
                 vlc.EventType.MediaPlayerPaused,
                 vlc.EventType.MediaPlayerStopped,
-                vlc.EventType.MediaPlayerMediaChanged,
+                # vlc.EventType.MediaPlayerMediaChanged,
             ]:
                 em.event_attach(
                     event_type,
@@ -48,7 +56,7 @@ def init_players_events(self):
         
 def update_active_player_id(self, idx):
     self.active_player_id = idx
-    self.print("active_player_id", { "id": self.active_player_id })
+    self.print("active_player_id", { "value": self.active_player_id })
     
 def set_media(self, file, idx):
     """Efficiently set the media for a specific player."""
@@ -64,7 +72,6 @@ def set_media(self, file, idx):
         self.print("error", "Invalid media path provided.")
         return
 
-    self.print("debug", f"Setting media for player {idx}: {media_path}")
     # Update the current file for the player
     self.current_files[idx] = file
 
@@ -82,13 +89,61 @@ def set_media(self, file, idx):
             self.update_player_data(idx, None)
     except Exception as e:
         self.print("error", f"Error setting media: {e}")
+        
+def play(self, idx=0):
+    """ Play a specific player by index. """
+    if self.active_player_id != idx:
+        self.update_active_player_id(idx)
+
+    if self.current_files[idx].get("is_image", True):
+        # 이미지 재생
+        self.display_image(self.current_files[idx], idx)
+        return
+    else:
+        # 미디어 재생
+        self.players[idx].play()
+
+    # 해당 플레이어의 위젯이 숨김 상태면 활성화 하기
+    if not self.player_widgets[idx].isVisible():
+        # 트랜지션(페이드 효과)으로 위젯 전환
+        self.fade_transition(idx)
+
+def play_id(self, file):
+    """Efficiently play a specific file by ID or path."""
+    idx = self.active_player_id
+
+    # Determine next available player index if current is busy
+    if self.players[idx].is_playing() or (self.player_widgets[idx].isVisible() and self.player_widgets[idx].pixmap()):
+        idx = 1 if idx == 0 else 0
+        
+    # set Media file for the player
+    self.set_media(file, idx)
+    self.update_active_player_id(idx)
+
+    try:
+        if file.get("is_image") == False:
+            self.players[idx].play()
+        self.fade_transition(idx)
+    except Exception as e:
+        self.print("error", f"Error playing file: {e}")
+
+def on_end_reached(self, idx, event):
+    """ Handle end reached event for a specific player. """
+    try:
+        self.update_player_data(idx, event)
+        self.print('end_reached', {
+            "playlist_track_index": self.track_index,
+            "active_player_id": self.active_player_id,
+        })
+    except Exception as e:
+        self.print("error", f"Error handling end reached event: {e}")
+        
 
 def pause(self, idx=0):
     """ Pause a specific player by index. """
     if idx < 0 or idx >= len(self.players):
         self.print("error", f"Invalid player index: {idx}")
         return
-
     self.players[self.active_player_id].pause()
         
 def stop(self, idx=None):
@@ -100,29 +155,13 @@ def stop(self, idx=None):
     else :
         self.players[idx].stop()
     self.player_widgets[idx].setVisible(False)  # Hide the player widget
-    self.print("debug", f"Player {idx} stopped.")
     
 def stop_all(self):
     """모든 플레이어와 위젯을 효율적으로 중지하고 로고를 표시합니다."""
     # 모든 플레이어 중지 및 위젯 숨김
     for idx in range(len(self.player_widgets)):
         self.stop(idx)
-    
-def set_time(self, time, idx=None):
-    """효율적으로 특정 플레이어의 재생 시간을 설정합니다."""
-    idx = self.active_player_id if idx is None else idx
-
-    if not isinstance(time, int) or time < 0:
-        self.print("error", "Invalid time value provided.")
-        return
-
-    try:
-        self.players[idx].set_time(time)
-        self.print("debug", f"Set player {idx} time to: {time}")
-    except Exception as e:
-        self.print("error", f"Error setting time for player {idx}: {e}")
-    
-    
+                
 def update_player_data(self, id, event):
     """효율적으로 VLC 플레이어의 상태를 업데이트합니다."""
     try:

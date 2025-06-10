@@ -5,6 +5,7 @@ const { dbStatus, dbFiles } = require('@db')
 const { getLogoPath } = require('@api/files/folders')
 const { setPlaylistMode } = require('@api/playlists')
 const { sendPlayerCommand, sendMessageToClient } = require('@api')
+const { send } = require('process')
 
 const playid = async (id) => {
   logger.info(`Received play request with ID: ${id}`)
@@ -36,7 +37,6 @@ const stop = () => {
 }
 
 const updateTime = (time, idx) => {
-  logger.info(`Updating player time to: ${time} for index: ${idx}`)
   sendPlayerCommand('set_time', { time, idx })
 }
 
@@ -47,13 +47,10 @@ const setFullscreen = async (value) => {
 
 const setLogo = async (logo) => {
   const filePath = path.join(getLogoPath(), logo)
+
   pStatus.logo.file = filePath
   pStatus.logo.name = logo
-  await dbStatus.update(
-    { type: 'logo' },
-    { $set: { file: filePath, name: logo } },
-    { upsert: true }
-  )
+  await dbStatus.update({ type: 'logo' }, { file: filePath, name: logo })
   sendMessageToClient('pStatus', {
     logo: pStatus.logo
   })
@@ -63,9 +60,8 @@ const setLogo = async (logo) => {
 }
 
 const showLogo = async (show) => {
-  logger.info(`Setting logo visibility to: ${show}`)
   pStatus.logo.show = show
-  await dbStatus.update({ type: 'logo' }, { $set: { show } }, { upsert: true })
+  await dbStatus.update({ type: 'logo' }, { show })
   sendMessageToClient('pStatus', { logo: pStatus.logo })
   sendPlayerCommand('show_logo', { show })
   return `Logo visibility set to: ${show}`
@@ -74,7 +70,7 @@ const showLogo = async (show) => {
 const setLogoSize = async (size) => {
   logger.info(`Setting logo size to: ${size}`)
   pStatus.logo.size = size
-  await dbStatus.update({ type: 'logo' }, { $set: { size } }, { upsert: true })
+  await dbStatus.update({ type: 'logo' }, { size })
   sendMessageToClient('pStatus', {
     logo: pStatus.logo
   })
@@ -95,11 +91,7 @@ const setAudioDevice = async (deviceId) => {
     return
   }
   pStatus.device.audiodevice = deviceId
-  await dbStatus.update(
-    { type: 'audiodevice' },
-    { $set: { audiodevice: deviceId } },
-    { upsert: true }
-  )
+  await dbStatus.update({ type: 'audiodevice' }, { audiodevice: deviceId })
   sendMessageToClient('pStatus', {
     device: pStatus.device
   })
@@ -108,10 +100,14 @@ const setAudioDevice = async (deviceId) => {
   return `Audio device set to: ${deviceId}`
 }
 
-const setImageTime = async (time, idx) => {
-  logger.info(`Setting image time to: ${time} for index: ${idx}`)
-  sendPlayerCommand('image_time', { time, idx })
-  return `Image time set to: ${time} for index: ${idx}`
+const setImageTime = async (time) => {
+  logger.info(`Setting image time to: ${time}`)
+  sendPlayerCommand('image_time', { time })
+  await dbStatus.update({ type: 'image_time' }, { time })
+  sendMessageToClient('pStatus', {
+    imageTime: time
+  })
+  return `Image time set to: ${time}`
 }
 
 const setRepeat = async (mode = null) => {
@@ -125,11 +121,11 @@ const setRepeat = async (mode = null) => {
     const currentIdx = modes.indexOf(pStatus.repeat)
     pStatus.repeat = modes[(currentIdx + 1) % modes.length]
   }
-  await dbStatus.update(
-    { type: 'repeat' },
-    { $set: { mode: pStatus.repeat } },
-    { upsert: true }
-  )
+  await dbStatus.update({ type: 'repeat' }, { mode: pStatus.repeat })
+  logger.info(`Repeat mode set to: ${pStatus.repeat}`)
+  sendMessageToClient('pStatus', {
+    repeat: pStatus.repeat
+  })
   return pStatus.repeat
 }
 
@@ -137,6 +133,12 @@ const setNext = async () => {
   logger.info('Setting next track in playlist')
   sendPlayerCommand('next', {})
   return 'Next track set'
+}
+
+const setPrevious = async () => {
+  logger.info('Setting previous track in playlist')
+  sendPlayerCommand('previous', {})
+  return 'Previous track set'
 }
 
 module.exports = {
@@ -154,5 +156,6 @@ module.exports = {
   setAudioDevice,
   setImageTime,
   setRepeat,
-  setNext
+  setNext,
+  setPrevious
 }

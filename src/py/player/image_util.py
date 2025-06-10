@@ -5,7 +5,6 @@ def display_image(self, file, idx=None):
     """Efficiently display an image on a specific player widget using PySide."""
     idx = self.active_player_id if idx is None else idx
     image_path = file.get("path")
-    self.print("debug", f"Displaying image on player widget {idx}: {image_path}")
 
     try:
         # Stop any media currently playing on the player
@@ -52,10 +51,8 @@ def stop_image(self, idx=None):
     """Efficiently stop displaying the image on a specific player widget."""
     if self.image_timer_instance.isActive():
         self.image_timer_instance.stop()
-        self.print("debug", "Existing image timer stopped.")
     idx = self.active_player_id if idx is None else idx
     widget = self.player_widgets[idx]
-    self.print("debug", f"Stopping image display on player widget {idx}")
     widget.clear()
     widget.setVisible(False)
     if hasattr(widget, 'original_pixmap'):
@@ -86,5 +83,11 @@ def update_image_size(self):
             
 def set_image_time(self, time):
     self.image_time = time
-    self.print("set_image_time", {"image_time" : self.image_time})
-    
+    self.print("set_image_time", {"value" : self.image_time})
+
+def update_widget_sizes(self, event):
+    """ MainWindow 크기 변경 시 위젯 크기를 업데이트합니다. 각위젯에 이미지가 있으면 함께 크기를 조정합니다. """
+    for player in self.player_widgets:
+        player.setGeometry(0, 0, self.width(), self.height())
+        # 이미지 위젯이 있다면 크기를 조정합니다.
+    self.update_image_size()

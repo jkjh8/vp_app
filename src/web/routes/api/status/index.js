@@ -28,7 +28,7 @@ router.post('/update', async (req, res) => {
     pStatus[key] = value
 
     // Save the updated status to the database
-    await dbStatus.update({ type: key }, { $set: { value } }, { upsert: true })
+    await dbStatus.update({ type: key }, { value })
     logger.info(`Status updated for key "${key}" with value: ${value}`)
 
     res.json({

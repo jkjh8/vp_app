@@ -4,6 +4,9 @@ let pStatus = {
   playlistTrackIndex: 0,
   repeat: 'none',
   nics: [],
+  tcpPort: 12345,
+  udpPort: 12346,
+  webport: 3000,
   image_time: 10,
   playlistfile: '',
   playlist: {},
@@ -61,6 +64,10 @@ let pStatus = {
   background: 'black'
 }
 
+const updatePStatus = (newStatus) => {
+  pStatus = { ...pStatus, ...newStatus }
+}
+
 let _pythonProcess = null
 
 function getPythonProcess() {
@@ -73,6 +80,7 @@ function setPythonProcess(proc) {
 
 module.exports = {
   pStatus,
+  updatePStatus,
   getPythonProcess,
   setPythonProcess
 }

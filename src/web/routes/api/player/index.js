@@ -8,10 +8,12 @@ const {
   setBackground,
   setAudioDevice,
   setRepeat,
-  setNext
+  setNext,
+  setPrevious
 } = require('@api/player/index.js')
 const { pStatus } = require('@src/_status.js')
 const { dbStatus } = require('@db')
+const logger = require('@logger')
 
 const router = express.Router()
 
@@ -20,7 +22,7 @@ router.get('/playid/:id', async (req, res) => {
   try {
     res.status(200).json({ message: await playid(Number(req.params.id)) })
   } catch (error) {
-    console.error('Error occurred while playing media:', error)
+    logger.error('Error occurred while playing media:', error)
     res.status(500).send({ error: 'Failed to play media' })
   }
 })
@@ -29,7 +31,7 @@ router.get('/play/:id', async (req, res) => {
   try {
     res.status(200).send({ message: play(Number(req.params.id)) })
   } catch (error) {
-    console.error('Error occurred while playing media:', error)
+    logger.error('Error occurred while playing media:', error)
     res.status(500).send({ error: 'Failed to play media' })
   }
 })
@@ -38,7 +40,7 @@ router.get('/stop', async (req, res) => {
   try {
     res.status(200).json({ message: stop() })
   } catch (error) {
-    console.error('Error occurred while stopping media:', error)
+    logger.error('Error occurred while stopping media:', error)
     res.status(500).send({ error: 'Failed to stop media' })
   }
 })
@@ -47,7 +49,7 @@ router.get('/pause/:id', async (req, res) => {
   try {
     res.status(200).json({ message: await pause(Number(req.params.id)) })
   } catch (error) {
-    console.error('Error occurred while pausing media:', error)
+    logger.error('Error occurred while pausing media:', error)
     res.status(500).json({ error: 'Failed to pause media' })
   }
 })
@@ -58,7 +60,7 @@ router.get('/fullscreen/:value', async (req, res) => {
       .status(200)
       .json({ message: await setFullscreen(req.params.value === 'true') })
   } catch (error) {
-    console.error('Error occurred while setting fullscreen mode:', error)
+    logger.error('Error occurred while setting fullscreen mode:', error)
     res.status(500).json({ error: 'Failed to set fullscreen mode' })
   }
 })
@@ -67,7 +69,7 @@ router.post('/background', async (req, res) => {
   try {
     res.status(200).json({ message: await setBackground(req.body.color) })
   } catch (error) {
-    console.error('Error occurred while setting background color:', error)
+    logger.error('Error occurred while setting background color:', error)
     res.status(500).json({ error: 'Failed to set background color' })
   }
 })
@@ -76,18 +78,17 @@ router.put('/setaudiodevice', async (req, res) => {
   try {
     res.status(200).json({ message: await setAudioDevice(req.body.deviceId) })
   } catch (error) {
-    console.error('Error occurred while setting audio device:', error)
+    logger.error('Error occurred while setting audio device:', error)
     res.status(500).json({ error: 'Failed to set audio device' })
   }
 })
 
-router.get('/repeat/:mode', async (req, res) => {
+router.get('/repeat', async (req, res) => {
   try {
-    const mode = req.params.mode
-    const r = await setRepeat(mode)
+    const r = await setRepeat()
     res.status(200).json({ message: `Repeat mode set to: ${r}`, mode: r })
   } catch (error) {
-    console.error('Error occurred while setting repeat mode:', error)
+    logger.error('Error occurred while setting repeat mode:', error)
     res.status(500).json({ error: 'Failed to set repeat mode' })
   }
 })
@@ -96,8 +97,17 @@ router.get('/next', async (req, res) => {
   try {
     res.status(200).json({ message: await setNext() })
   } catch (error) {
-    console.error('Error occurred while setting next track:', error)
+    logger.error('Error occurred while setting next track: ' + error)
     res.status(500).json({ error: 'Failed to set next track' })
+  }
+})
+
+router.get('/prev', async (req, res) => {
+  try {
+    res.status(200).json({ message: await setPrevious() })
+  } catch (error) {
+    logger.error('Error occurred while setting previous track:' + error)
+    res.status(500).json({ error: 'Failed to set previous track' })
   }
 })
 

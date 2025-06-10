@@ -54,6 +54,9 @@ const parsing = (data) => {
         // pStatus.repeat = data.value
         // sendPlayerCommand('repeat', { mode: pStatus.repeat })
         break
+      // case 'playlist_play':
+      //   sendPlayerCommand('playlist_play', { idx: data.idx })
+      //   break
       default:
         console.warn('Unknown data type:', data.type)
     }

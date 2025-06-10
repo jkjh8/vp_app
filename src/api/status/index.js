@@ -8,17 +8,11 @@ const getSetupfromDB = async () => {
 
   setups.forEach((setup) => {
     switch (setup.type) {
-      case 'image_time':
-        pStatus.image_time = setup.time
-        break
       case 'background':
         pStatus.background = setup.value
         break
       case 'playlistMode':
         pStatus.playlistMode = setup.value
-        break
-      case 'repeat':
-        pStatus.repeat = setup.value
         break
       case 'darkmode':
         pStatus.darkmode = setup.value
@@ -56,10 +50,10 @@ const getSetupfromDB = async () => {
         pStatus.tracks = setup.playlist.tracks || []
         break
       case 'repeat':
-        if (pStatus.playlistMode === false && setup.repeat === 'repeat_one') {
+        if (pStatus.playlistMode === false && setup.mode === 'repeat_one') {
           pStatus.repeat = 'all'
         } else {
-          pStatus.repeat = setup.repeat || 'none'
+          pStatus.repeat = setup.mode || 'none'
         }
         break
       case 'image_time':
