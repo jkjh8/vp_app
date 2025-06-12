@@ -7,14 +7,15 @@ const getTracksWithFileInfo = async (tracks) => {
   if (!tracks || tracks.length === 0) return []
   return await Promise.all(
     tracks.map(async (track) => {
-      const file = await dbFiles.findOne({ uuid: track })
+      const file = await dbFiles.findOne({ uuid: track.uuid })
       if (file) {
         return {
           filename: file.filename,
           path: file.path,
           uuid: file.uuid,
           mimetype: file.mimetype,
-          is_image: file.is_image
+          is_image: file.is_image,
+          time: track.time || 0
         }
       }
     })
@@ -103,6 +104,28 @@ const setPlaylistMode = async (mode) => {
   })
 }
 
+const editImageRenderTime = async (playlistId, idx, time) => {
+  if (!playlistId || idx === undefined || time === undefined) {
+    throw new Error('Playlist ID, track index, and time are required')
+  }
+  // playlist _id를 찾아서 tracks의 idx번째 track의 time값을 수정
+  const playlist = await dbPlaylists.findOne({ _id: playlistId })
+  if (!playlist) {
+    throw new Error('Playlist not found')
+  }
+  if (!playlist.tracks || !playlist.tracks[idx]) {
+    throw new Error('Track not found in playlist')
+  }
+  playlist.tracks[idx].time = time
+  await dbPlaylists.update(
+    { _id: playlistId },
+    { $set: { tracks: playlist.tracks } }
+  )
+  sendPlayerCommand('set_tracks', {
+    tracks: playlist.tracks
+  })
+}
+
 const playlistPlay = async (playlistId, trackIndex) => {
   logger.warn('playlistPlay called with:' + { playlistId, trackIndex })
 
@@ -129,5 +152,6 @@ module.exports = {
   setPlaylist,
   setPlaylistMode,
   setplaylistTrackIndex,
-  playlistPlay
+  playlistPlay,
+  editImageRenderTime
 }

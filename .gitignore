@@ -27,3 +27,5 @@ yarn-error.log*
 .venv
 __pycache__
 vp_app.code-workspace
+
+yarn.lock

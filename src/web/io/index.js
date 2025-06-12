@@ -1,75 +1,61 @@
-const appServer = require('..')
-const http = require('http')
+const {
+  playid,
+  updateTime,
+  setFullscreen,
+  setLogo,
+  showLogo,
+  setLogoSize,
+  setBackground,
+  sendPlayerCommand
+} = require('../../api/player')
 const logger = require('../../logger')
-const { app } = require('electron')
-const express = require('express')
+let { pStatus } = require('../../_status')
 
-const { Server } = require('socket.io')
-const { pStatus } = require('../../_status')
-const { parsing } = require('./parsing')
-
-let io = null
-
-const initIOServer = (httpPort) => {
+const parsing = (data) => {
   try {
-    let port = null
-    if (httpPort) {
-      port = httpPort
-    } else {
-      port = process.env.PORT || 3000
+    switch (data.type) {
+      case 'playid':
+        playid(data.value)
+        break
+      case 'play':
+        sendPlayerCommand('play', { idx: data.idx })
+        break
+      case 'pause':
+        sendPlayerCommand('pause', { idx: data.idx })
+        break
+      case 'stop':
+        sendPlayerCommand('stop', {})
+        break
+      case 'time':
+        updateTime(data.value * 1000, data.idx)
+        break
+      case 'fullscreen':
+        setFullscreen(data.value)
+        break
+      case 'logo':
+        setLogo(data.value)
+        pStatus.logo.file = data.value
+        pStatus.logo.show = true
+        break
+      case 'show_logo':
+        showLogo(data.value)
+        pStatus.logo.show = data.value
+        break
+      case 'logo_size':
+        setLogoSize(data.height, data.width)
+        pStatus.logo.height = data.height
+        pStatus.logo.width = data.width
+        break
+      case 'background':
+        setBackground(data.value)
+        pStatus.background = data.value
+        break
+      default:
+        logger.warn('Unknown data type:', data.type)
     }
-
-    const httpServer = http.createServer(appServer)
-    io = new Server(httpServer, {
-      cors: {
-        origin: '*',
-        methods: ['GET', 'POST']
-      }
-    })
-
-    io.on('connection', (socket) => {
-      logger.info(`New client connected: ${socket.id}`)
-
-      if (pStatus && Object.keys(pStatus).length > 0) {
-        // Send the current player status to the client
-        socket.emit('pStatus', pStatus)
-      } else {
-        logger.warn('No player data available to send')
-      }
-
-      socket.on('event', (data) => {
-        parsing(data)
-      })
-
-      // Handle disconnection
-      socket.on('disconnect', () => {
-        logger.info(`Client disconnected: ${socket.id}`)
-      })
-
-      // You can add more event listeners here
-      // Example: socket.on('message', (data) => { ... })
-    })
-
-    httpServer.listen(port, () => {
-      logger.info(`Socket.IO server running on port ${port}`)
-    })
-
-    // Start the Python process with the Socket.IO instance
-    // startPlayerProcess(io)
   } catch (error) {
-    logger.error('Error initializing Socket.IO server:', error)
+    logger.error('Error in parsing data:', error)
   }
-  return io
 }
 
-module.exports = {
-  initIOServer,
-  io,
-  getIO: () => {
-    if (!io) {
-      logger.error('Socket.IO server is not initialized.')
-      return null
-    }
-    return io
-  }
-}
+module.exports = { parsing }

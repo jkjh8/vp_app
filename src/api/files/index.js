@@ -8,19 +8,34 @@ const fs = require('fs')
 const { getTmpPath, getMediaPath } = require('../files/folders')
 const { generateThumbnail, resizeImage } = require('../files/thumbnail')
 //db 모듈 가져오기
-const { dbFiles } = require('../../db')
+const { dbFiles, dbPlaylists } = require('../../db')
 
 const setupFFmpeg = () => {
-  let ffmpegExecutablePath = ffmpegPath.replace('app.asar', 'app.asar.unpacked')
-  let ffprobeExecutablePath = ffprobe.path.replace(
-    'app.asar',
-    'app.asar.unpacked'
-  )
+  let ffmpegExecutablePath = ffmpegPath
+  let ffprobeExecutablePath = ffprobe.path
+
+  // asar 패키징된 환경에서는 app.asar.unpacked 경로로 변경
+  if (ffmpegExecutablePath.includes('app.asar')) {
+    ffmpegExecutablePath = ffmpegExecutablePath.replace(
+      'app.asar',
+      'app.asar.unpacked'
+    )
+  }
+  if (ffprobeExecutablePath.includes('app.asar')) {
+    ffprobeExecutablePath = ffprobeExecutablePath.replace(
+      'app.asar',
+      'app.asar.unpacked'
+    )
+  }
+
   logger.info('ffmpeg path:', ffmpegExecutablePath)
   logger.info('ffprobe path:', ffprobeExecutablePath)
   ffmpeg.setFfmpegPath(ffmpegExecutablePath)
   ffmpeg.setFfprobePath(ffprobeExecutablePath)
 }
+
+// ffmpeg/ffprobe 경로를 반드시 초기화
+setupFFmpeg()
 
 // getVideoMetadata 함수는 비디오 파일의 메타데이터를 가져오는 Promise를 반환합니다.
 const getMetadata = (filePath) => {
@@ -117,29 +132,27 @@ const postProcessFiles = async (files) => {
       await fs.promises.rename(filePath, newFilePath)
 
       if (mimetype.startsWith('video/')) {
-        thumbnailPath = await generateThumbnail(newFilePath, uuidFolderPath)
+        thumbnailPath = generateThumbnail(newFilePath, uuidFolderPath)
       } else if (mimetype.startsWith('image/')) {
-        thumbnailPath = await resizeImage(newFilePath, uuidFolderPath)
+        thumbnailPath = resizeImage(newFilePath, uuidFolderPath)
       }
 
       // 예약된 number와 uuid로 파일 정보 업데이트
       await dbFiles.update(
         { uuid, number },
         {
-          $set: {
-            reserved: false,
-            fieldname: decodedFieldname,
-            filename: decodedFilename,
-            originalname: decodedOriginalname,
-            amx: convertforAMX(decodedOriginalname),
-            mimetype,
-            size,
-            path: newFilePath,
-            metadata,
-            thumbnail: thumbnailPath,
-            is_image: mimetype.startsWith('image/'),
-            updatedAt: new Date()
-          }
+          reserved: false,
+          // fieldname: decodedFieldname,
+          filename: decodedFilename,
+          originalname: decodedOriginalname,
+          amx: convertforAMX(decodedOriginalname),
+          mimetype,
+          size,
+          path: newFilePath,
+          metadata,
+          thumbnail: thumbnailPath,
+          is_image: mimetype.startsWith('image/'),
+          updatedAt: new Date()
         }
       )
       logger.info(`File processed and saved: ${newFilePath}`)
@@ -179,10 +192,32 @@ const convertforAMX = (str) => {
   return hexArray
 }
 
+const resetAllMediaFiles = async () => {
+  const mediaPath = getMediaPath()
+  try {
+    // mediaPath 아래 logo폴더를 제외한 모든 파일과 폴더를 삭제
+    const files = await fs.promises.readdir(mediaPath, { withFileTypes: true })
+    for (const file of files) {
+      const filePath = path.join(mediaPath, file.name)
+      if (file.isDirectory() && file.name !== 'logo') {
+        await fs.promises.rmdir(filePath, { recursive: true })
+      } else if (file.name !== 'logo') {
+        await fs.promises.unlink(filePath)
+      }
+    }
+    // dbFiles초기화
+    await dbFiles.remove({}, { multi: true })
+    await dbPlaylists.remove({}, { multi: true })
+  } catch (error) {
+    logger.error('Error resetting media files:', error)
+  }
+}
+
 module.exports = {
   setupFFmpeg,
   getMetadata,
   postProcessFiles,
   insertFileWithUniqueNumber,
-  convertforAMX
+  convertforAMX,
+  resetAllMediaFiles
 }

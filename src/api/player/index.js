@@ -5,6 +5,7 @@ const { dbStatus, dbFiles } = require('../../db')
 const { getLogoPath } = require('../files/folders')
 const { setPlaylistMode } = require('../playlists')
 const { sendPlayerCommand, sendMessageToClient } = require('..')
+const { send } = require('express/lib/response')
 
 const playid = async (id) => {
   logger.info(`Received play request with ID: ${id}`)
@@ -84,6 +85,11 @@ const setBackground = async (background) => {
   return `Background set to: ${background}`
 }
 
+const getAudioDevices = () => {
+  sendPlayerCommand('get_audio_devices', {})
+  return 'Requesting current audio device'
+}
+
 const setAudioDevice = async (deviceId) => {
   if (!deviceId) {
     logger.warn('Received invalid audiodevice message from Python')
@@ -152,6 +158,7 @@ module.exports = {
   showLogo,
   setLogoSize,
   setBackground,
+  getAudioDevices,
   setAudioDevice,
   setImageTime,
   setRepeat,

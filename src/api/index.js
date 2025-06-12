@@ -7,7 +7,7 @@ const sendPlayerCommand = (command, data) => {
 }
 
 const sendMessageToClient = (event, data) => {
-  const io = require('../web/io').getIO()
+  const io = require('../web').getIO()
   if (!io) {
     logger.error('Socket.IO server is not initialized.')
     return
@@ -17,7 +17,7 @@ const sendMessageToClient = (event, data) => {
 
 const sendStatusAndUpdate = async (stats) => {
   try {
-    const io = require('../web/io').getIO()
+    const io = require('../web').getIO()
     if (!io) {
       logger.error('Socket.IO server is not initialized.')
       return

@@ -6,23 +6,28 @@ const { pStatus, getPythonProcess, setPlayerProcess } = require('../_status.js')
 const { parsing } = require('./parsing')
 const {} = require('../_status.js')
 
-const pythonPath = path.join(__dirname, '.venv', 'Scripts', 'python.exe')
-const pythonScriptPath = path.join(__dirname, 'player', 'player.py')
-// const pythonPath = path.join(__dirname, 'player', 'dist', 'video.exe')
-
 function startPlayerProcess() {
   if (getPythonProcess()) {
     logger.warn('Python process is already running.')
     return
   }
-  // const playerPath = path.join(
-  //   app.getAppPath(),
-  //   'public',
-  //   'player',
-  //   'video.exe'
-  // )
-  // // pStatus를 환경변수로 전달
-  const proc = spawn(pythonPath, [pythonScriptPath], {
+  const pythonPath = path.join(
+    app.getAppPath(),
+    'src',
+    'player',
+    'player',
+    '.venv',
+    'Scripts',
+    'python.exe'
+  )
+  const scriptPath = path.join(
+    app.getAppPath(),
+    'src',
+    'player',
+    'player',
+    'player.py'
+  )
+  const proc = spawn(pythonPath, [scriptPath], {
     stdio: ['pipe', 'pipe', 'pipe'],
     shell: false,
     env: {

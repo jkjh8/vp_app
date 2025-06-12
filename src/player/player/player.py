@@ -92,16 +92,11 @@ class Player(QMainWindow):
             player.setVisible(False)
 
         self.set_logo_file(self.logo_file)
-        if not self.logo_file or not os.path.exists(self.logo_file):
-            self.print("error", f"Logo file does not exist or is invalid: {self.logo_file}")
-            return
-
 
         self.update_active_player_id(self.active_player_id)
         
         self.init_players()
         self.init_players_events()
-        
         
         # fullscreen mode
         self.set_fullscreen(self.fullscreen)
@@ -212,7 +207,6 @@ class Player(QMainWindow):
     def set_logo_center(self):
         """ 로고 위젯을 중앙에 위치시키고 크기를 조정합니다. """
         if not hasattr(self, 'logo_widget') or not self.logo_widget:
-            self.print("error", "Logo widget is not initialized.")
             return
         logo_x = (self.width() - self.logo_width) // 2
         logo_y = (self.height() - self.logo_height) // 2
@@ -284,12 +278,12 @@ class Player(QMainWindow):
                 self.logo_height = original_height
 
         self.print("debug", f"Logo size updated: width={self.logo_width}, height={self.logo_height}")
+        self.set_logo_center()  # 로고 위치 업데이트
         
-    def set_logo_file(self, file):
-        """ 로고 파일 경로를 설정하고 기존 로고를 제거한 뒤 새로운 로고 위젯을 초기화합니다. """
-        if not file or not os.path.exists(file):
-            self.print("error", f"Invalid logo file path: {file}")
-            return
+    def set_logo_file(self, file_path):
+        if not hasattr(self, 'logo_widget') or self.logo_widget is None:
+            self.logo_widget = QLabel(self)  # 로고 위젯이 없으면 새로 생성
+            self.print("debug", "Logo widget initialized.")
 
         # 기존 로고 위젯 제거
         if hasattr(self, 'logo_widget') and self.logo_widget:
@@ -298,7 +292,7 @@ class Player(QMainWindow):
             self.logo_widget = None
 
         # 로고 파일 경로 및 관련 속성 업데이트
-        self.logo_file = file
+        self.logo_file = file_path
         self.logo_svg = self.logo_file.lower().endswith(".svg")
         self.print("debug", f"Logo file set to: {self.logo_file}")
 
@@ -373,7 +367,8 @@ class Player(QMainWindow):
 
             widget.setPixmap(scaled_pixmap)
             widget.setAlignment(Qt.AlignCenter)
-            widget.setVisible(True)
+            if not self.playlist_mode:
+                widget.setVisible(True)
             self.print("player_data", {
                 "id": idx,
                 "event": "display_image",
@@ -437,14 +432,34 @@ class Player(QMainWindow):
         self.print("set_fullscreen", { "value": value })
         
     def fade_transition(self, idx):
-        """ 위젯 전환 """
+        """ 위젯 전환 및 미디어 타입에 따라 로고 표시/숨김 처리 """
         from_id = 1 if idx == 0 else 0  # 현재 동작 중인 위젯의 인덱스
         from_widget = self.player_widgets[from_id]  # 현재 동작 중인 위젯
         to_widget = self.player_widgets[idx]
-        to_widget.setVisible(True)  # Ensure the target widget is visible before fading in
-        to_widget.raise_()  # Bring the target widget to the front
+        to_file = self.current_files[idx] if self.current_files and len(self.current_files) > idx else {}
+        mimetype = to_file.get("mimetype", "")
+
+        # 미디어 타입에 따라 로고 표시/숨김
+        if mimetype.startswith("audio/"):
+            self.stop(from_id)
+            to_widget.setVisible(False)
+            from_widget.setVisible(False)
+            for player_widget in self.player_widgets:
+                player_widget.setVisible(False)
+                self.logo_widget.raise_() # Bring the logo widget to the front
+            if self.logo_widget and self.logo_show:
+                self.set_logo_visibility(True)
+            else:
+                # 나머지 경우 모든 위젯 숨김
+                from_widget.setVisible(False)
+            self.print("debug", f"fade_transition: Audio file detected (mimetype: {mimetype}). Logo will be shown.")
+        else:
+            self.set_logo_visibility(False)
+            self.print("debug", f"fade_transition: Non-audio file (mimetype: {mimetype}). Logo will be hidden.")
+            to_widget.setVisible(True)  # Ensure the target widget is visible before fading in
+            to_widget.raise_()  # Bring the target widget to the front
+
         self.update_active_player_id(idx)  # Update the active player ID
-        
         
         from_widget.setVisible(False)
         if hasattr(from_widget, 'original_pixmap'):
@@ -452,6 +467,7 @@ class Player(QMainWindow):
         if self.players[from_id].is_playing():
             self.players[from_id].stop()
             
+    # 오디오 디바이스 관련 함수
     def set_audio_device_with_retry(self, device_id, retry_interval=2, max_retries=3):
         """Set the audio output device with retry logic."""
         def retry_logic():
@@ -465,8 +481,6 @@ class Player(QMainWindow):
                 retries += 1
                 time.sleep(retry_interval)
             self.print("error", f"Failed to set audio device after {max_retries} attempts.")
-
-        # Run the retry logic in a separate thread to avoid blocking
         threading.Thread(target=retry_logic).start()
 
     def set_audio_device(self, device_id):
@@ -474,7 +488,6 @@ class Player(QMainWindow):
         try:
             for player in self.players:
                 result = player.audio_output_device_set(None, device_id if device_id else None)
-                # 성공 조건: result가 None 또는 0일 경우
                 if result is not None and result != 0:
                     self.print("error", f"Failed to set audio device: {device_id}. VLC returned: {result}")
                     self.set_audio_device_result = False
@@ -509,34 +522,30 @@ class Player(QMainWindow):
             self.print("error", {"message": f"Error getting audio devices: {e}"})
             return []
 
+    # 플레이어 초기화 관련 함수
     def init_players(self):
         self.print("info", f"Initializing VLC players...")
-        # 공통 옵션을 변수로 선언
         vlc_args = [
             "--no-video-title-show",
             "--avcodec-hw=any",
             "--no-drop-late-frames",
             "--no-skip-frames"
         ]
-        # VLC 인스턴스 2개 생성 및 플레이어 리스트 초기화
         self.instances = [vlc.Instance(*vlc_args) for _ in range(2)]
         self.players = [instance.media_player_new() for instance in self.instances]
-        # 각 플레이어에 해당하는 위젯에 바인딩
         for idx, player in enumerate(self.players):
             player.set_hwnd(int(self.player_widgets[idx].winId()))
-            player.audio_set_volume(100)  # 기본 볼륨 설정
-        
+            player.audio_set_volume(100)
+
     def init_players_events(self):
         try:
             def make_handler(func, *args):
-                """Create a handler function that calls func with args."""
                 def handler(event):
                     try:
                         func(*args, event)
                     except Exception as e:
                         print(f"Error in handler: {e}")
                 return handler
-            
             for idx, player in enumerate(self.players):
                 em = player.event_manager()
                 em.event_detach(vlc.EventType.MediaPlayerEndReached)
@@ -548,13 +557,11 @@ class Player(QMainWindow):
                     vlc.EventType.MediaPlayerEncounteredError,
                     lambda event, id=idx: self.print("error", f"Player {id} encountered an error.")
                 )
-                # 이벤트 타입과 핸들러 매핑
                 for event_type in [
                     vlc.EventType.MediaPlayerTimeChanged,
                     vlc.EventType.MediaPlayerPlaying,
                     vlc.EventType.MediaPlayerPaused,
                     vlc.EventType.MediaPlayerStopped,
-                    # vlc.EventType.MediaPlayerMediaChanged,
                 ]:
                     em.event_attach(
                         event_type,
@@ -562,7 +569,7 @@ class Player(QMainWindow):
                     )
         except Exception as e:
             self.print("error", f"Error initializing player events: {e}")
-            
+        
     def update_active_player_id(self, idx):
         self.active_player_id = idx
         self.print("active_player_id", { "value": self.active_player_id })
@@ -622,9 +629,21 @@ class Player(QMainWindow):
         idx = self.active_player_id
 
         # Determine next available player index if current is busy
+        if len(self.players) < 2 or len(self.player_widgets) < 2:
+            self.print("error", "Player or widget list is not properly initialized.")
+            return
+
+        if idx not in [0, 1]:
+            self.print("error", f"Invalid player index: {idx}")
+            return
+
         if self.players[idx].is_playing() or (self.player_widgets[idx].isVisible() and self.player_widgets[idx].pixmap()):
             idx = 1 if idx == 0 else 0
-            
+
+        if idx < 0 or idx >= len(self.players):
+            self.print("error", f"play_id: idx {idx} out of range for players list.")
+            return
+
         # set Media file for the player
         self.set_media(file, idx)
         self.update_active_player_id(idx)

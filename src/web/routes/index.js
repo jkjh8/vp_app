@@ -3,9 +3,6 @@ const router = express.Router()
 const path = require('path')
 const logger = require('../../logger')
 
-// Serve static files from the 'public/spa' directory
-router.use(express.static(path.join(__dirname, '../../public/spa')))
-
 router.get('/', (req, res) => {
   try {
     res.sendFile(path.join(__dirname, '../../public/spa/index.html'))
@@ -15,5 +12,9 @@ router.get('/', (req, res) => {
   }
 })
 
-router.use('/api', require('./api'))
+router.use('/api/files', require('./files'))
+router.use('/api/player', require('./player'))
+router.use('/api/status', require('./status'))
+router.use('/api/playlist', require('./playlist'))
+
 module.exports = router
