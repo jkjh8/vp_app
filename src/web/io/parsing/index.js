@@ -6,10 +6,10 @@ const {
   showLogo,
   setLogoSize,
   setBackground
-} = require('@api/player')
-const logger = require('@logger')
-let { pStatus } = require('@src/_status')
-const { sendPlayerCommand } = require('@api/player')
+} = require('../../../api/player')
+const logger = require('../../../logger')
+let { pStatus } = require('../../../_status')
+const { sendPlayerCommand } = require('../../../api/player')
 
 const parsing = (data) => {
   try {

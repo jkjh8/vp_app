@@ -1,7 +1,7 @@
-const { pStatus } = require('@src/_status')
-const { dbPlaylists, dbFiles } = require('@db')
-const { sendPlayerCommand, sendMessageToClient } = require('@api')
-const logger = require('@src/logger')
+const { pStatus } = require('../../_status')
+const { dbPlaylists, dbFiles } = require('../../db')
+const { sendPlayerCommand, sendMessageToClient } = require('../../api')
+const logger = require('../../logger')
 
 const getTracksWithFileInfo = async (tracks) => {
   if (!tracks || tracks.length === 0) return []

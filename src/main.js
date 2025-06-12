@@ -1,31 +1,25 @@
 /** @format */
 
-// import { createRequire } from 'module'
-// const require = createRequire(import.meta.url)
-require('module-alias/register')
 const electron = require('electron')
 const app = electron.app
 const BrowserWindow = electron.BrowserWindow
 const path = require('path')
 
 const userDataPath = app.getPath('userData') // 사용자 데이터 경로
-const { initDb } = require('@db')
+const { initDb } = require('./db')
 initDb(userDataPath) // 데이터베이스 초기화
 
-const { startPythonProcess } = require('@py')
-const { stopPythonProcess } = require('@py')
-const logger = require('@logger')
-const { getSetupfromDB } = require('@api/status')
-const { initIOServer } = require('@web/io')
+const { startPlayerProcess, stopPlayerProcess } = require('./player')
+const logger = require('./logger')
+const { getSetupfromDB } = require('./api/status')
+const { initIOServer } = require('./web/io')
 const {
   existsMediaPath,
   existsTmpPath,
   existsLogoPath,
   deleteTmpFiles
-} = require('@api/files/folders')
-const { fnGetPlaylists } = require('@api/playlists')
-
-// ES5에서는 __dirname, __filename 바로 사용 가능
+} = require('./api/files/folders')
+const { fnGetPlaylists } = require('./api/playlists')
 
 // 애플리케이션 윈도우 객체를 전역으로 유지
 let mainWindow
@@ -63,15 +57,13 @@ app.whenReady().then(async function () {
   deleteTmpFiles() // 임시 디렉토리 내 모든 파일 삭제
   existsMediaPath() // 미디어 디렉토리 확인 및 생성
   existsLogoPath() // 로고 디렉토리 확인 및 생성
-  //데이터 베이스 초기화
+  // 데이터베이스 초기화
   await getSetupfromDB()
   // 플레이리스트 초기화
   await fnGetPlaylists()
   // http 서버 시작
   const io = initIOServer(3000)
-  // startPythonProcess()
-  startPythonProcess(io) // Python 프로세스 시작
-  // createWindow()
+  startPlayerProcess(io) // Python 프로세스 시작
 
   // macOS에서는 앱이 활성화될 때 창이 없으면 새로 생성
   app.on('activate', function () {
@@ -84,7 +76,7 @@ app.whenReady().then(async function () {
 // 모든 창이 닫히면 앱 종료 (Windows & Linux)
 app.on('window-all-closed', function () {
   // python 프로세스 종료
-  stopPythonProcess()
+  stopPlayerProcess()
   if (process.platform !== 'darwin') {
     app.quit()
   }

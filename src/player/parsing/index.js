@@ -1,7 +1,7 @@
-let { pStatus } = require('@src/_status.js')
-const logger = require('@logger')
-const { dbStatus, dbFiles } = require('@db')
-const { sendMessageToClient, sendPlayerCommand } = require('@api')
+let { pStatus } = require('../../_status.js')
+const logger = require('../../logger')
+const { dbStatus, dbFiles } = require('../../db')
+const { sendMessageToClient, sendPlayerCommand } = require('../../api')
 
 let lastEndReachedEvent = null
 

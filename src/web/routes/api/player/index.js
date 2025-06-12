@@ -10,10 +10,10 @@ const {
   setRepeat,
   setNext,
   setPrevious
-} = require('@api/player/index.js')
-const { pStatus } = require('@src/_status.js')
-const { dbStatus } = require('@db')
-const logger = require('@logger')
+} = require('../../../../api/player/index.js')
+const { pStatus } = require('../../../../_status.js')
+const { dbStatus } = require('../../../../db')
+const logger = require('../../../../logger')
 
 const router = express.Router()
 

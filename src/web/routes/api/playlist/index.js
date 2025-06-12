@@ -1,9 +1,9 @@
 const express = require('express')
 const router = express.Router()
-const db = require('@db')
-const { pStatus } = require('@src/_status.js')
-const { dbPlaylists } = require('@db')
-const logger = require('@logger')
+const db = require('../../../../db')
+const { pStatus } = require('../../../../_status.js')
+const { dbPlaylists } = require('../../../../db')
+const logger = require('../../../../logger')
 
 const {
   fnGetPlaylists,
@@ -11,7 +11,7 @@ const {
   fnEditPlaylists,
   fnAddTracksToPlaylist,
   playlistPlay
-} = require('@api/playlists')
+} = require('../../../../api/playlists')
 
 router.get('/', async (req, res) => {
   try {

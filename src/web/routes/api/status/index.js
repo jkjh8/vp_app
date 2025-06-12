@@ -1,10 +1,10 @@
 const express = require('express')
 const router = express.Router()
-const { getSetupfromDB } = require('@src/api/status')
-const { pStatus } = require('@src/_status.js')
-const logger = require('@logger')
-const { dbStatus } = require('@db')
-const { setImageTime } = require('@api/player')
+const { getSetupfromDB } = require('../../../../api/status')
+const { pStatus } = require('../../../../_status.js')
+const logger = require('../../../../logger')
+const { dbStatus } = require('../../../../db')
+const { setImageTime } = require('../../../../api/player')
 
 router.use('/logo', require('./logo'))
 

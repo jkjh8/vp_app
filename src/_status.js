@@ -74,7 +74,7 @@ function getPythonProcess() {
   return _pythonProcess
 }
 
-function setPythonProcess(proc) {
+function setPlayerProcess(proc) {
   _pythonProcess = proc
 }
 
@@ -82,5 +82,5 @@ module.exports = {
   pStatus,
   updatePStatus,
   getPythonProcess,
-  setPythonProcess
+  setPlayerProcess
 }

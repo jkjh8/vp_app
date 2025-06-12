@@ -1,7 +1,7 @@
 const { app } = require('electron')
 const path = require('path')
 const fs = require('fs')
-const logger = require('@logger')
+const logger = require('../../logger')
 
 function getMediaPath() {
   return path.join(app.getPath('home'), 'media')

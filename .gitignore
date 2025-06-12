@@ -3,6 +3,10 @@
 node_modules
 *.db
 src/db/db
+build
+src/py/player/build
+_internal
+dist
 
 # Log files
 npm-debug.log*

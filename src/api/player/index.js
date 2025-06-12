@@ -1,11 +1,10 @@
 const path = require('path')
-const logger = require('@logger')
-const { pStatus } = require('@src/_status')
-const { dbStatus, dbFiles } = require('@db')
-const { getLogoPath } = require('@api/files/folders')
-const { setPlaylistMode } = require('@api/playlists')
-const { sendPlayerCommand, sendMessageToClient } = require('@api')
-const { send } = require('process')
+const logger = require('../../logger')
+const { pStatus } = require('../../_status')
+const { dbStatus, dbFiles } = require('../../db')
+const { getLogoPath } = require('../files/folders')
+const { setPlaylistMode } = require('../playlists')
+const { sendPlayerCommand, sendMessageToClient } = require('..')
 
 const playid = async (id) => {
   logger.info(`Received play request with ID: ${id}`)

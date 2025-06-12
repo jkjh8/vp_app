@@ -1,11 +1,15 @@
 const express = require('express')
 const path = require('path')
 const fs = require('fs')
-const logger = require('@logger')
+const logger = require('../../../../../logger')
 const multer = require('multer')
-const { getLogoPath } = require('@api/files/folders')
-const { pStatus } = require('@src/_status')
-const { setLogo, showLogo, setLogoSize } = require('@api/player/index.js')
+const { getLogoPath } = require('../../../../../api/files/folders')
+const { pStatus } = require('../../../../../_status')
+const {
+  setLogo,
+  showLogo,
+  setLogoSize
+} = require('../../../../../api/player/index.js')
 
 const router = express.Router()
 const upload = multer({

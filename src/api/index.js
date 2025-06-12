@@ -1,13 +1,13 @@
-const logger = require('@logger')
-const { updatePStatus } = require('@src/_status.js')
+const logger = require('../logger')
+const { updatePStatus } = require('../_status.js')
 
 const sendPlayerCommand = (command, data) => {
   logger.info(`Sending command to player: ${command} ${data}`)
-  require('@py').send({ command, ...data })
+  require('../player').send({ command, ...data })
 }
 
 const sendMessageToClient = (event, data) => {
-  const io = require('@web/io').getIO()
+  const io = require('../web/io').getIO()
   if (!io) {
     logger.error('Socket.IO server is not initialized.')
     return
@@ -17,7 +17,7 @@ const sendMessageToClient = (event, data) => {
 
 const sendStatusAndUpdate = async (stats) => {
   try {
-    const io = require('@web/io').getIO()
+    const io = require('../web/io').getIO()
     if (!io) {
       logger.error('Socket.IO server is not initialized.')
       return

@@ -1,7 +1,7 @@
 {
   "name": "vp_app",
   "version": "1.0.0",
-  "description": "",
+  "description": "VP App for media playback and management",
   "author": "",
   "license": "ISC",
   "main": "src/main.js",
@@ -31,18 +31,10 @@
     "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
+    "7zip-bin": "^5.2.0",
     "electron": "^36.3.1",
     "electron-builder": "^26.0.12",
     "prettier": "^3.5.3"
-  },
-  "_moduleAliases": {
-    "@src": "./src",
-    "@public": "./public",
-    "@api": "./src/api",
-    "@db": "./src/db",
-    "@logger": "./src/logger",
-    "@py": "./src/py",
-    "@web": "./src/web"
   },
   "build": {
     "appId": "com.example.vpapp",
@@ -53,43 +45,36 @@
     "files": [
       "src/**/*",
       "public/**/*",
-      "package.json"
+      "package.json",
+      "!**/*.map",
+      "!**/node_modules/**/test/**",
+      "!**/node_modules/**/docs/**",
+      "!**/__pycache__/**",
+      "!**/*.log",
+      "!**/dist/**",
+      "!**/debug/**"
     ],
+    "asar": true,
     "win": {
       "target": [
         {
           "target": "nsis",
           "arch": [
-            "x64",
-            "ia32"
+            "x64"
           ]
         }
       ],
-      "icon": "icon.ico"
+      "icon": "./public/icons/icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": true,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "icon.ico",
-      "uninstallerIcon": "icon.ico",
+      "installerIcon": "./public/icons/icon.ico",
+      "uninstallerIcon": "./public/icons/icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "VP App",
-      "installDirectory": "C:\\VPApp"
-    },
-    "extraFiles": [
-      {
-        "from": "public/extra.txt",
-        "to": "extra.txt"
-      },
-      {
-        "from": "public/config",
-        "to": "config",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ]
+      "shortcutName": "VP App"
+    }
   }
 }

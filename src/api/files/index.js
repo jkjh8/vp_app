@@ -1,14 +1,14 @@
 const ffmpeg = require('fluent-ffmpeg')
 const ffmpegPath = require('ffmpeg-static')
 const ffprobe = require('ffprobe-static')
-const logger = require('@logger')
+const logger = require('../../logger')
 const { v4: uuidv4 } = require('uuid')
 const path = require('path')
 const fs = require('fs')
-const { getTmpPath, getMediaPath } = require('@api/files/folders')
-const { generateThumbnail, resizeImage } = require('@api/files/thumbnail')
+const { getTmpPath, getMediaPath } = require('../files/folders')
+const { generateThumbnail, resizeImage } = require('../files/thumbnail')
 //db 모듈 가져오기
-const { dbFiles } = require('@db')
+const { dbFiles } = require('../../db')
 
 const setupFFmpeg = () => {
   let ffmpegExecutablePath = ffmpegPath.replace('app.asar', 'app.asar.unpacked')
@@ -38,7 +38,7 @@ const getMetadata = (filePath) => {
 
 // 파일 등록 시 중복되지 않는 숫자(순번) 생성 함수
 const getNextFileNumber = async () => {
-  const { db } = require('@db')
+  const { db } = require('../../db')
   try {
     // cfind()를 사용하여 cursor 반환
     const lastFiles = await db.files
