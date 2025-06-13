@@ -6,7 +6,7 @@ let pStatus = {
   nics: [],
   tcpPort: 12345,
   udpPort: 12346,
-  webport: 3000,
+  webPort: 3000,
   image_time: 10,
   playlistfile: '',
   playlist: {},

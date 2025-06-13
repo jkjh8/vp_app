@@ -9,6 +9,34 @@ from PySide6.QtSvg import QSvgRenderer
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
 
+# =====================
+# Player 클래스 (미디어 플레이어)
+# =====================
+#
+# 주요 기능:
+# - 로고 표시/숨김 및 크기/위치 조정
+# - 오디오 디바이스 관리
+# - 플레이어 초기화 및 이벤트 연결
+# - 미디어(오디오/비디오/이미지) 재생, 정지, 일시정지, 트랙 관리
+# - 플레이리스트 모드 및 트랙 전환
+# - UI 관련(배경색, 전체화면, 위젯 크기 등)
+# - stdin 명령 처리
+#
+# 함수 그룹핑:
+# 1. 명령 처리 및 유틸리티
+# 2. 로고 관련 함수
+# 3. 이미지 표시/정지 및 타이머
+# 4. UI/윈도우 관련 함수
+# 5. 오디오 디바이스 관련 함수
+# 6. 플레이어 초기화 및 이벤트
+# 7. 미디어/플레이어 제어 (set_media, play, stop 등)
+# 8. 플레이리스트/트랙 관리
+#
+# =====================
+
+# =========================
+# 표준 입출력 관련 클래스
+# =========================
 class stdinRead(QThread):
     message_received = Signal(str)
     def __init__(self):
@@ -32,9 +60,15 @@ class stdinRead(QThread):
     def stop(self):
         self.running = False
 
+# =========================
+# Player 메인 클래스
+# =========================
 class Player(QMainWindow):
     def __init__(self, pstatus=None, app_path=None):
-        """Initialize the media player with the given status efficiently."""
+        """
+        Player 클래스 초기화
+        - 윈도우 설정, 프로세스 우선순위, stdin 리더, 아이콘, 상태값, 위젯, 플레이어, 오디오 디바이스 등 초기화
+        """
         super().__init__()
         self.setWindowTitle("Media Player")
         self.setGeometry(100, 100, 800, 600)
@@ -110,9 +144,12 @@ class Player(QMainWindow):
         self.image_timer_instance = QTimer(self)  # QTimer 객체 생성
         self.image_timer_instance.timeout.connect(lambda: self.on_end_reached(self.active_player_id, None))
         
+    # =========================
+    # 명령 처리 및 유틸 함수
+    # =========================
     # 명령 처리 함수
     def handle_stdin_message(self, data):
-        """ Handle commands received from stdin. """
+        """표준입력으로 들어오는 명령 처리"""
         try:
             data = json.loads(data)
         except json.JSONDecodeError:
@@ -173,85 +210,82 @@ class Player(QMainWindow):
             
         
     def print(self, type, data):
-        """함수명과 데이터를 효율적으로 포맷하여 출력합니다."""
+        """json 포맷으로 로그 출력"""
         print(json.dumps({"type": type, "data": data}, ensure_ascii=False, separators=(",", ":")), flush=True)
         
     def resizeEvent(self, event):
-        """ 메인 윈도우 크기 변경 시 로고 위젯 크기를 동적으로 조정합니다. """
+        """윈도우 리사이즈 시 위젯 크기 조정"""
         super().resizeEvent(event)
         for player in self.player_widgets:
             player.setGeometry(0, 0, self.width(), self.height())
-        self.update_image_size()
-        self.set_logo_center()  # 로고 위치 조정
+        for idx in range(len(self.player_widgets)):
+            self.apply_image_layout(idx)
+        self.apply_logo_layout()
 
     def closeEvent(self, event):
-        """ 창 닫기 이벤트 핸들러 창을 닫으면 전체 프로세스 종료 """
+        """창 닫기 시 프로세스 종료"""
         self.print("info", "Closing player window, terminating process.")
         self.stdin_reader.stop()
         sys.exit(0)
         
     def update_image_size(self):
-        for idx, widget in enumerate(self.player_widgets):
-            if hasattr(widget, 'original_pixmap') and widget.original_pixmap:
-                pixmap = widget.original_pixmap
-                scaled_pixmap = pixmap.scaled(
-                    widget.width(),
-                    widget.height(),
-                    Qt.KeepAspectRatio,
-                    Qt.SmoothTransformation
-                )
-                widget.setPixmap(scaled_pixmap)
-                widget.setAlignment(Qt.AlignCenter)
-                
-    # 로고 함수들
-    def set_logo_center(self):
-        """ 로고 위젯을 중앙에 위치시키고 크기를 조정합니다. """
+        """이미지 위젯 크기 동기화 (중복 제거)"""
+        for idx in range(len(self.player_widgets)):
+            self.apply_image_layout(idx)
+
+    def update_widget_sizes(self, event):
+        for player in self.player_widgets:
+            player.setGeometry(0, 0, self.width(), self.height())
+        self.update_image_size()
+
+    # =========================
+    # 공통 위젯 레이아웃/가시성 헬퍼 함수
+    # =========================
+    def apply_logo_layout(self):
+        """로고 위젯의 크기, 위치, 가시성 일괄 적용"""
         if not hasattr(self, 'logo_widget') or not self.logo_widget:
             return
         logo_x = (self.width() - self.logo_width) // 2
         logo_y = (self.height() - self.logo_height) // 2
         self.logo_widget.setGeometry(logo_x, logo_y, self.logo_width, self.logo_height)
         self.logo_widget.setVisible(self.logo_show)
-        
+
+    def apply_image_layout(self, idx):
+        """이미지 위젯의 크기, 정렬 일괄 적용"""
+        widget = self.player_widgets[idx]
+        if hasattr(widget, 'original_pixmap') and widget.original_pixmap:
+            pixmap = widget.original_pixmap
+            scaled_pixmap = pixmap.scaled(
+                widget.width(), widget.height(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+            )
+            widget.setPixmap(scaled_pixmap)
+            widget.setAlignment(Qt.AlignCenter)
+
+    # =========================
+    # 로고 관련 함수 (중복 제거)
+    # =========================
+    def set_logo_center(self):
+        self.apply_logo_layout()
+
     def set_logo_size(self, size):
-        """ 로고 크기를 조정합니다. """
         try:
             self.logo_size = size
-            self.update_logo_size()  # 새로운 크기 계산
-
-            if not self.logo_svg and self.logo_widget and isinstance(self.logo_widget, QLabel):
-                # Pixmap 로고의 경우 크기 조정된 Pixmap을 다시 설정
-                pixmap = QPixmap(self.logo_file)
-                if not pixmap.isNull():
-                    scaled_pixmap = pixmap.scaled(
-                        self.logo_width,
-                        self.logo_height,
-                        Qt.KeepAspectRatio,
-                        Qt.SmoothTransformation
-                    )
-                    self.logo_widget.setPixmap(scaled_pixmap)
-
-            self.set_logo_center()  # 크기와 위치 업데이트
+            self.update_logo_size()
         except Exception as e:
             self.print("error", f"Error setting logo size: {e}")
-                
+
     def update_logo_size(self):
-        """ 로고 파일의 원본 크기를 확인하고 self.logo_width와 self.logo_height를 업데이트합니다. """
         if not self.logo_file or not os.path.exists(self.logo_file):
             self.print("error", "Logo file does not exist or path is empty.")
             return
-
         if self.logo_svg:
-            # SVG 파일의 경우 QSvgRenderer를 사용하여 원본 크기를 가져옴
             try:
                 svg_renderer = QSvgRenderer(self.logo_file)
                 if not svg_renderer.isValid():
                     self.print("error", "Failed to load SVG logo file.")
                     return
-
                 original_width = svg_renderer.defaultSize().width()
                 original_height = svg_renderer.defaultSize().height()
-
                 if self.logo_size > 0:
                     self.logo_width = self.logo_size
                     self.logo_height = int(original_height * (self.logo_size / original_width))
@@ -261,45 +295,33 @@ class Player(QMainWindow):
             except Exception as e:
                 self.print("error", f"Error loading SVG logo: {e}")
         else:
-            # Pixmap 파일의 경우 원본 크기를 확인
             pixmap = QPixmap(self.logo_file)
             if pixmap.isNull():
                 self.print("error", "Failed to load Pixmap logo file.")
                 return
-
             original_width = pixmap.width()
             original_height = pixmap.height()
-
             if self.logo_size > 0:
                 self.logo_width = self.logo_size
                 self.logo_height = int(original_height * (self.logo_size / original_width))
             else:
                 self.logo_width = original_width
                 self.logo_height = original_height
-
         self.print("debug", f"Logo size updated: width={self.logo_width}, height={self.logo_height}")
-        self.set_logo_center()  # 로고 위치 업데이트
-        
+        self.apply_logo_layout()
+
     def set_logo_file(self, file_path):
         if not hasattr(self, 'logo_widget') or self.logo_widget is None:
-            self.logo_widget = QLabel(self)  # 로고 위젯이 없으면 새로 생성
+            self.logo_widget = QLabel(self)
             self.print("debug", "Logo widget initialized.")
-
-        # 기존 로고 위젯 제거
         if hasattr(self, 'logo_widget') and self.logo_widget:
-            self.logo_widget.setVisible(False)  # 기존 로고 숨기기
-            self.logo_widget.deleteLater()  # 기존 로고 위젯 삭제
+            self.logo_widget.setVisible(False)
+            self.logo_widget.deleteLater()
             self.logo_widget = None
-
-        # 로고 파일 경로 및 관련 속성 업데이트
         self.logo_file = file_path
         self.logo_svg = self.logo_file.lower().endswith(".svg")
         self.print("debug", f"Logo file set to: {self.logo_file}")
-
-        # 로고 크기 업데이트
         self.update_logo_size()
-
-        # 로고 위젯 초기화
         if self.logo_svg:
             try:
                 self.logo_widget = QSvgWidget(self.logo_file, self)
@@ -310,7 +332,7 @@ class Player(QMainWindow):
             try:
                 pixmap = QPixmap(self.logo_file)
                 if not pixmap.isNull():
-                    self.logo_widget = QLabel(self)  # 새로운 QLabel 생성
+                    self.logo_widget = QLabel(self)
                     self.logo_widget.setPixmap(
                         pixmap.scaled(
                             self.logo_width,
@@ -325,26 +347,21 @@ class Player(QMainWindow):
             except Exception as e:
                 self.print("error", f"Failed to initialize Pixmap logo widget: {e}")
                 return
+        self.apply_logo_layout()
 
-        # 로고 위젯의 크기와 위치를 중앙으로 설정
-        self.set_logo_center()
-        
     def set_logo_visibility(self, visible):
-        """ 로고 위젯의 가시성을 설정합니다. """
-        if hasattr(self, 'logo_widget') and self.logo_widget:
-            self.logo_widget.setVisible(visible)
-            self.print("debug", f"Logo visibility set to: {visible}")
-            
+        self.logo_show = visible
+        self.apply_logo_layout()
+        self.print("debug", f"Logo visibility set to: {visible}")
+
+    # =========================
+    # 이미지 표시/정지 및 타이머 (중복 제거)
+    # =========================
     def display_image(self, file, idx=None):
-        """Efficiently display an image on a specific player widget using PySide."""
         idx = self.active_player_id if idx is None else idx
         image_path = file.get("path")
-
         try:
-            # Stop any media currently playing on the player
             self.stop(idx)
-
-            # Load and cache the pixmap only if the path changed
             widget = self.player_widgets[idx]
             if not hasattr(widget, 'original_pixmap') or not isinstance(widget.original_pixmap, QPixmap):
                 pixmap = QPixmap(image_path)
@@ -354,19 +371,8 @@ class Player(QMainWindow):
                 widget.original_pixmap = pixmap
             else:
                 pixmap = widget.original_pixmap
-
             self.print('media_changed', { "idx": idx, "uuid": file.get("uuid", ""), "path": image_path })
-
-            # Scale the pixmap to fit the QLabel while maintaining aspect ratio
-            scaled_pixmap = pixmap.scaled(
-                widget.width(),
-                widget.height(),
-                Qt.KeepAspectRatio,
-                Qt.SmoothTransformation
-            )
-
-            widget.setPixmap(scaled_pixmap)
-            widget.setAlignment(Qt.AlignCenter)
+            self.apply_image_layout(idx)
             if not self.playlist_mode:
                 widget.setVisible(True)
             self.print("player_data", {
@@ -381,9 +387,8 @@ class Player(QMainWindow):
             })
         except Exception as e:
             self.print("error", f"Error displaying image: {e}")
-            
+
     def stop_image(self, idx=None):
-        """Efficiently stop displaying the image on a specific player widget."""
         if self.image_timer_instance.isActive():
             self.image_timer_instance.stop()
         idx = self.active_player_id if idx is None else idx
@@ -404,25 +409,54 @@ class Player(QMainWindow):
         })
         
     def set_image_time(self, time):
+        """이미지 표시 시간 설정"""
         self.image_time = time
         self.print("set_image_time", {"value" : self.image_time})
 
-    def update_widget_sizes(self, event):
-        """ MainWindow 크기 변경 시 위젯 크기를 업데이트합니다. 각위젯에 이미지가 있으면 함께 크기를 조정합니다. """
-        for player in self.player_widgets:
-            player.setGeometry(0, 0, self.width(), self.height())
-            # 이미지 위젯이 있다면 크기를 조정합니다.
-        self.update_image_size()
-        
+    def image_timer(self):
+        """이미지 재생 타이머 설정"""
+        timer = self.image_timer_instance
+
+        if timer.isActive():
+            timer.stop()
+            try:
+                timer.timeout.disconnect()
+                self.print("debug", "Existing image timer stopped and disconnected.")
+            except RuntimeError:
+                self.print("debug", "Timeout signal not connected, skipping disconnect.")
+
+        if not self.playlist_mode:
+            self.print("error", "Image timer can only be set in playlist mode.")
+            return
+
+        if not self.tracks or self.track_index >= len(self.tracks):
+            self.print("debug", "Playlist is empty or index is out of range.")
+            return
+
+        current_file = self.current_files[self.active_player_id]
+        if not current_file.get("is_image", False):
+            self.print("debug", "Current file is not an image, skipping image timer setup.")
+            return
+
+        show_time = current_file.get("time")
+        if show_time is None or show_time <= 0:
+            self.print("debug", "Invalid show time for image, using default of 5 seconds.")
+            show_time = self.image_time
+        timer.start(show_time * 1000)
+        self.print("debug", f"Image timer started for {show_time} seconds.")
+
+    # =========================
+    # UI/윈도우 관련 함수
+    # =========================
     def set_background_color(self, color):
-        """ 배경 색상을 설정하는 함수 """
+        """배경색 설정"""
         self.background_color = color
         self.setStyleSheet(f"background-color: {self.background_color};")  # 메인 윈도우 배경색 변경
         for widget in self.player_widgets:
             widget.setStyleSheet(f"background-color: {self.background_color};")
 
     def set_fullscreen(self, value):
-        """ Set the fullscreen mode for the player. """
+        """전체화면 모드 설정"""
         if value:
             self.showFullScreen()
         else:
@@ -432,7 +466,7 @@ class Player(QMainWindow):
         self.print("set_fullscreen", { "value": value })
         
     def fade_transition(self, idx):
-        """ 위젯 전환 및 미디어 타입에 따라 로고 표시/숨김 처리 """
+        """플레이어 전환 및 로고 표시/숨김"""
         from_id = 1 if idx == 0 else 0  # 현재 동작 중인 위젯의 인덱스
         from_widget = self.player_widgets[from_id]  # 현재 동작 중인 위젯
         to_widget = self.player_widgets[idx]
@@ -467,9 +501,11 @@ class Player(QMainWindow):
         if self.players[from_id].is_playing():
             self.players[from_id].stop()
             
+    # =========================
     # 오디오 디바이스 관련 함수
+    # =========================
     def set_audio_device_with_retry(self, device_id, retry_interval=2, max_retries=3):
-        """Set the audio output device with retry logic."""
+        """오디오 디바이스 설정(재시도 포함)"""
         def retry_logic():
             retries = 0
             while retries < max_retries:
@@ -484,7 +520,7 @@ class Player(QMainWindow):
         threading.Thread(target=retry_logic).start()
 
     def set_audio_device(self, device_id):
-        """Set the audio output device for all players."""
+        """오디오 디바이스 설정"""
         try:
             for player in self.players:
                 result = player.audio_output_device_set(None, device_id if device_id else None)
@@ -499,7 +535,7 @@ class Player(QMainWindow):
             self.set_audio_device_result = False
 
     def get_audio_devices(self):
-        """Return a list of available audio devices for a VLC player."""
+        """오디오 디바이스 목록 반환"""
         try:
             devices = []
             player = self.players[0] if self.players else vlc.MediaPlayer()
@@ -522,8 +558,11 @@ class Player(QMainWindow):
             self.print("error", {"message": f"Error getting audio devices: {e}"})
             return []
 
-    # 플레이어 초기화 관련 함수
+    # =========================
+    # 플레이어 초기화 및 이벤트
+    # =========================
     def init_players(self):
+        """VLC 플레이어 인스턴스 및 위젯 초기화"""
         self.print("info", f"Initializing VLC players...")
         vlc_args = [
             "--no-video-title-show",
@@ -535,9 +574,11 @@ class Player(QMainWindow):
         self.players = [instance.media_player_new() for instance in self.instances]
         for idx, player in enumerate(self.players):
             player.set_hwnd(int(self.player_widgets[idx].winId()))
+            player.audio_output_device_set(None, self.pstatus.get("device", {}).get("audiodevice", "default"))
             player.audio_set_volume(100)
 
     def init_players_events(self):
+        """VLC 플레이어 이벤트 핸들러 등록"""
         try:
             def make_handler(func, *args):
                 def handler(event):
@@ -571,11 +612,15 @@ class Player(QMainWindow):
             self.print("error", f"Error initializing player events: {e}")
         
     def update_active_player_id(self, idx):
+        """활성 플레이어 인덱스 갱신"""
         self.active_player_id = idx
         self.print("active_player_id", { "value": self.active_player_id })
         
+    # =========================
+    # 미디어/플레이어 제어
+    # =========================
     def set_media(self, file, idx):
-        """Efficiently set the media for a specific player."""
+        """플레이어에 미디어 파일 설정"""
         if idx < 0 or idx >= len(self.players):
             self.print("error", "Invalid player index provided.")
             return
@@ -607,7 +652,7 @@ class Player(QMainWindow):
             self.print("error", f"Error setting media: {e}")
             
     def play(self, idx=0):
-        """ Play a specific player by index. """
+        """플레이어 재생"""
         if self.active_player_id != idx:
             self.update_active_player_id(idx)
 
@@ -625,7 +670,7 @@ class Player(QMainWindow):
             self.fade_transition(idx)
 
     def play_id(self, file):
-        """Efficiently play a specific file by ID or path."""
+        """특정 파일 재생"""
         idx = self.active_player_id
 
         # Determine next available player index if current is busy
@@ -656,7 +701,7 @@ class Player(QMainWindow):
             self.print("error", f"Error playing file: {e}")
 
     def on_end_reached(self, idx, event):
-        """ Handle end reached event for a specific player. """
+        """재생 종료 이벤트 처리"""
         try:
             self.update_player_data(idx, event)
             self.print('end_reached', {
@@ -668,30 +713,31 @@ class Player(QMainWindow):
             
 
     def pause(self, idx=0):
-        """ Pause a specific player by index. """
+        """플레이어 일시정지"""
         if idx < 0 or idx >= len(self.players):
             self.print("error", f"Invalid player index: {idx}")
             return
         self.players[self.active_player_id].pause()
             
     def stop(self, idx=None):
+        """플레이어 정지"""
         if idx is None:
             idx = self.active_player_id
-        """ Stop a specific player by index. """
         if self.current_files[idx].get("is_image", True):
             self.stop_image(idx)
         else :
             self.players[idx].stop()
         self.player_widgets[idx].setVisible(False)  # Hide the player widget
+        self.set_logo_center()
         
     def stop_all(self):
-        """모든 플레이어와 위젯을 효율적으로 중지하고 로고를 표시합니다."""
+        """모든 플레이어 정지"""
         # 모든 플레이어 중지 및 위젯 숨김
         for idx in range(len(self.player_widgets)):
             self.stop(idx)
                     
     def update_player_data(self, id, event):
-        """효율적으로 VLC 플레이어의 상태를 업데이트합니다."""
+        """플레이어 상태 정보 갱신"""
         try:
             player = self.players[id]
             media = player.get_media()
@@ -712,13 +758,29 @@ class Player(QMainWindow):
         except Exception as e:
             self.print("error", f"Error updating player data: {e}")
 
+    def set_time(self, time, idx=None):
+        """플레이어 재생 위치 설정"""
+        idx = self.active_player_id if idx is None else idx
+
+        if not isinstance(time, int) or time < 0:
+            self.print("error", "Invalid time value provided.")
+            return
+
+        try:
+            self.players[idx].set_time(time)
+        except Exception as e:
+            self.print("error", f"Error setting time for player {idx}: {e}")
+
+    # =========================
+    # 플레이리스트/트랙 관리
+    # =========================
     def set_playlist_mode(self, value):
-        """ Set the playlist mode (on/off). """
+        """플레이리스트 모드 설정"""
         self.print("debug", f"Setting playlist mode to: {value}")
         self.playlist_mode = value
         
     def set_tracks(self, tracks):
-        """ Set the playlist tracks efficiently. """
+        """트랙 리스트 설정"""
         if not isinstance(tracks, list):
             self.print("error", "Invalid tracks format, expected a list.")
             return
@@ -726,7 +788,7 @@ class Player(QMainWindow):
         self.tracks = tracks
             
     def update_track_index(self, idx):
-        """ Update the current track index. """
+        """트랙 인덱스 갱신"""
         if idx < 0 or idx >= len(self.tracks):
             self.print("error", f"Invalid track index: {idx}")
             return
@@ -734,8 +796,7 @@ class Player(QMainWindow):
         self.print("track_index", { "value": self.track_index })
 
     def playlist_play(self, idx = 0):
-        # self.print("error", f"Playlist play called with index: {idx}")
-        """ Play the current track in the playlist. """
+        """플레이리스트 재생"""
         if idx is not None:
             if idx < 0 or idx >= len(self.tracks):
                 self.print("error", f"Invalid playlist index: {idx}")
@@ -752,6 +813,7 @@ class Player(QMainWindow):
         self.image_timer()
             
     def next(self):
+        """다음 트랙 재생"""
         if not self.playlist_mode:
             self.print("error", "Next track can only be used in playlist mode.")
             return
@@ -770,7 +832,7 @@ class Player(QMainWindow):
         self.image_timer()
 
     def previous(self):
-        """ Move to the previous track. """
+        """이전 트랙 재생"""
         if not self.playlist_mode:
             self.print("error", "Previous track can only be used in playlist mode.")
             return
@@ -791,7 +853,7 @@ class Player(QMainWindow):
         self.playlist_play(self.track_index)
 
     def next_file_load(self, idx=None):
-        """ Load the next file in the playlist. """
+        """다음 파일 미리 로드"""
         self.print("warn", f"Current track index: {self.track_index}, Next track index: {self.next_track_index}")
 
         if idx is not None:
@@ -804,48 +866,6 @@ class Player(QMainWindow):
 
         self.next_player_index = 1 if self.active_player_id == 0 else 0
         self.set_media(self.tracks[self.next_track_index], self.next_player_index)
-
-    def set_time(self, time, idx=None):
-        """Efficiently set the playback time for a specific player."""
-        idx = self.active_player_id if idx is None else idx
-
-        if not isinstance(time, int) or time < 0:
-            self.print("error", "Invalid time value provided.")
-            return
-
-        try:
-            self.players[idx].set_time(time)
-        except Exception as e:
-            self.print("error", f"Error setting time for player {idx}: {e}")
-
-    def image_timer(self):
-        """Efficiently set a timer for image playback in playlist mode."""
-        timer = self.image_timer_instance
-
-        if timer.isActive():
-            timer.stop()
-            try:
-                timer.timeout.disconnect()
-                self.print("debug", "Existing image timer stopped and disconnected.")
-            except RuntimeError:
-                self.print("debug", "Timeout signal not connected, skipping disconnect.")
-
-        if not self.playlist_mode:
-            self.print("error", "Image timer can only be set in playlist mode.")
-            return
-
-        if not self.tracks or self.track_index >= len(self.tracks):
-            self.print("debug", "Playlist is empty or index is out of range.")
-            return
-
-        current_file = self.current_files[self.active_player_id]
-        if not current_file.get("is_image", False):
-            self.print("debug", "Current file is not an image, skipping image timer setup.")
-            return
-
-        show_time = current_file.get("time", self.image_time)
-        timer.start(show_time * 1000)
-        self.print("debug", f"Image timer started for {show_time} seconds.")
 
 if __name__ == "__main__":
     vp_pstatus_json = os.environ.get("VP_PSTATUS")

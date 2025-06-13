@@ -8,6 +8,15 @@ const getSetupfromDB = async () => {
 
   setups.forEach((setup) => {
     switch (setup.type) {
+      case 'webPort':
+        pStatus.webPort = setup.value || 3000
+        break
+      case 'tcpPort':
+        pStatus.tcpPort = setup.value || 3001
+        break
+      case 'udpPort':
+        pStatus.udpPort = setup.value || 3002
+        break
       case 'background':
         pStatus.background = setup.value
         break

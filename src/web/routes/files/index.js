@@ -1,11 +1,11 @@
 const express = require('express')
 const multer = require('multer')
-const logger = require('../../../logger')
-const { postProcessFiles, resetAllMediaFiles } = require('../../../api/files')
+const logger = require('@logger')
+const { postProcessFiles, resetAllMediaFiles } = require('@api/files')
 const path = require('path')
 const fs = require('fs')
-const { getTmpPath, getMediaPath } = require('../../../api/files/folders')
-const { dbFiles } = require('../../../db')
+const { getTmpPath, getMediaPath } = require('@api/files/folders')
+const { dbFiles } = require('@db')
 
 const router = express.Router()
 

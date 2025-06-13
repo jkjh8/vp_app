@@ -2,7 +2,7 @@ const logger = require('../logger')
 const { updatePStatus } = require('../_status.js')
 
 const sendPlayerCommand = (command, data) => {
-  logger.info(`Sending command to player: ${command} ${data}`)
+  // logger.info(`Sending command to player: ${command} ${data}`)
   require('../player').send({ command, ...data })
 }
 
@@ -31,7 +31,7 @@ const sendStatusAndUpdate = async (stats) => {
 
     updatePStatus(stats)
     io.emit('pStatus', { ...stats })
-    logger.info('Status updated and sent to client successfully.')
+    // logger.info('Status updated and sent to client successfully.')
   } catch (error) {
     logger.error('Error sending status and update:', error)
     return

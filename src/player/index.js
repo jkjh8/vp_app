@@ -68,7 +68,7 @@ function send(message) {
   if (proc.stdin.writable) {
     const jsonMsg = JSON.stringify(message)
     proc.stdin.write(jsonMsg + '\n')
-    logger.info('Sent message to Python: ' + jsonMsg)
+    // logger.info('Sent message to Python: ' + jsonMsg)
   } else {
     logger.error('Python process stdin is not writable.')
   }
@@ -77,7 +77,6 @@ function send(message) {
 function getAudioDevices() {
   const proc = getPythonProcess()
   if (!proc) {
-    logger.warn('Python process is not running.')
     return []
   }
   send({ command: 'get_audio_devices' })

@@ -28,8 +28,8 @@ const setupFFmpeg = () => {
     )
   }
 
-  logger.info('ffmpeg path:', ffmpegExecutablePath)
-  logger.info('ffprobe path:', ffprobeExecutablePath)
+  // logger.info('ffmpeg path:', ffmpegExecutablePath)
+  // logger.info('ffprobe path:', ffprobeExecutablePath)
   ffmpeg.setFfmpegPath(ffmpegExecutablePath)
   ffmpeg.setFfprobePath(ffprobeExecutablePath)
 }
@@ -42,7 +42,7 @@ const getMetadata = (filePath) => {
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(filePath, (err, metadata) => {
       if (err) {
-        logger.error('Error getting video metadata:', err)
+        // logger.error('Error getting video metadata:', err)
         reject(err)
       } else {
         resolve(metadata)

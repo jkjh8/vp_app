@@ -28,8 +28,6 @@ const fnGetPlaylists = async () => {
     for (const playlist of playlists) {
       playlist.tracks = await getTracksWithFileInfo(playlist.tracks)
     }
-    // pStatus에 직접 저장 (value 없이)
-    pStatus.playlists = playlists
     return playlists
   } catch (error) {
     console.error('Error fetching playlists:', error)

@@ -2,6 +2,7 @@ let { pStatus } = require('../../_status.js')
 const logger = require('../../logger')
 const { dbStatus, dbFiles } = require('../../db')
 const { sendMessageToClient, sendPlayerCommand } = require('../../api')
+const { send } = require('express/lib/response.js')
 
 let lastEndReachedEvent = null
 
@@ -52,6 +53,9 @@ function handleEndReached(data) {
           sendPlayerCommand('next', {})
           lastEndReachedEvent = `all-${pStatus.playlistTrackIndex}`
         }
+      } else {
+        sendPlayerCommand('stop', { idx: playerId })
+        sendPlayerCommand('play', { idx: playerId })
       }
       break
     case 'single':
@@ -149,9 +153,7 @@ const parsing = async (data) => {
           break
         case 'audiodevices':
           pStatus.device.audiodevices = data.devices
-          sendMessageToClient('pStatus', {
-            device: { audiodevices: data.devices }
-          })
+          sendMessageToClient('pStatus', { device: pStatus.device })
           break
         case 'set_image_time':
           pStatus.image_time = data.value || 5
