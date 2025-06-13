@@ -1,7 +1,7 @@
 const dgram = require('dgram')
 const { pStatus } = require('@/_status')
 const logger = require('@logger')
-
+const { handleMessage } = require('@/api/terminal')
 const initUdp = (port) => {
   if (!port) {
     port = pStatus.udpPort
@@ -11,9 +11,7 @@ const initUdp = (port) => {
       .createSocket('udp4', (msg, rinfo) => {
         try {
           const message = msg.toString('utf-8')
-          logger.info(
-            `UDP message received: ${message} from ${rinfo.address}:${rinfo.port}`
-          )
+          handleMessage(message)
         } catch (error) {
           logger.error('Error parsing UDP message:', error)
         }

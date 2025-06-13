@@ -66,6 +66,12 @@ function send(message) {
     return
   }
   if (proc.stdin.writable) {
+    // object 값이 undefined인 경우 삭제
+    Object.keys(message).forEach((key) => {
+      if (message[key] === undefined) {
+        delete message[key]
+      }
+    })
     const jsonMsg = JSON.stringify(message)
     proc.stdin.write(jsonMsg + '\n')
     // logger.info('Sent message to Python: ' + jsonMsg)

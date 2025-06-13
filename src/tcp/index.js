@@ -1,6 +1,7 @@
 const net = require('net')
 const { pStatus } = require('@/_status')
 const logger = require('@logger')
+const { handleMessage } = require('@/api/terminal')
 
 const initTcp = (port) => {
   if (!port) {
@@ -12,7 +13,10 @@ const initTcp = (port) => {
         try {
           const message = data.toString('utf-8')
           logger.info(`TCP message received: ${message}`)
+          handleMessage(message)
+          socket.write('OK\n')
         } catch (error) {
+          socket.write('ERROR\n')
           logger.error('Error parsing data:', error)
         }
       })
