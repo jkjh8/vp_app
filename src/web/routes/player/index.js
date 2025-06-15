@@ -69,6 +69,7 @@ router.get('/fullscreen/:value', async (req, res) => {
 
 router.post('/background', async (req, res) => {
   try {
+    console.log('Setting background color:', req.body.color)
     const result = await setBackground(req.body.color)
     res.status(200).json({ message: result })
   } catch (error) {

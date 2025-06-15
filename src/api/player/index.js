@@ -81,6 +81,15 @@ const setLogoSize = async (size) => {
 }
 
 const setBackground = async (background) => {
+  if (!background || typeof background !== 'string') {
+    logger.warn('Received invalid background color from Python')
+    return
+  }
+  pStatus.background = background
+  await dbStatus.update({ type: 'background' }, { color: background })
+  sendMessageToClient('pStatus', {
+    background: pStatus.background
+  })
   sendPlayerCommand('background_color', { color: background })
   return `Background set to: ${background}`
 }

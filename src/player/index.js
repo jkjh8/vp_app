@@ -25,7 +25,7 @@ function startPlayerProcess() {
     'src',
     'player',
     'player',
-    'player.py'
+    'tkp.py'
   )
   const proc = spawn(pythonPath, [scriptPath], {
     stdio: ['pipe', 'pipe', 'pipe'],
