@@ -11,8 +11,8 @@ const {
   setRepeat,
   setNext,
   setPrevious
-} = require('@api/player')
-const logger = require('@logger')
+} = require('../../../api/player')
+const logger = require('../../../logger')
 
 const router = express.Router()
 

@@ -1,5 +1,5 @@
-const player = require('@api/player')
-const playlists = require('@api/playlists')
+const player = require('../player')
+const playlists = require('../playlists')
 
 async function handleMessage(msg) {
   try {

@@ -1,13 +1,16 @@
 const express = require('express')
 const path = require('path')
 const fs = require('fs')
-const logger = require('@logger/index.js')
+const logger = require('../../../../logger/index.js')
 const multer = require('multer')
-const { getLogoPath } = require('@api/files/folders.js')
-const { pStatus } = require('@/_status.js')
-const { dbStatus } = require('@db/index.js')
-const { setLogo, showLogo, setLogoSize } = require('@api/player/index.js')
-const sharp = require('sharp')
+const { getLogoPath } = require('../../../../api/files/folders.js')
+const { pStatus } = require('../../../../_status.js')
+const { dbStatus } = require('../../../../db/index.js')
+const {
+  setLogo,
+  showLogo,
+  setLogoSize
+} = require('../../../../api/player/index.js')
 
 const router = express.Router()
 const upload = multer({
@@ -33,18 +36,6 @@ router.get('/', async (req, res) => {
 router.post('/', upload.any(), async (req, res) => {
   try {
     const files = req.files
-    // svg파일이면 png로 변환
-    // for (const file of files) {
-    //   if (path.extname(file.filename).toLowerCase() === '.svg') {
-    //     const pngPath = file.path.replace(/\.svg$/i, '.png')
-    //     await sharp(file.path).png().toFile(pngPath)
-    //     // 필요하다면 DB에 pngPath 저장 등 추가 작업
-    //     // 원본 SVG 삭제 (선택)
-    //     fs.unlinkSync(file.path)
-    //     file.convertedPng = pngPath
-    //   }
-    // }
-
     res.status(200).json({
       message: 'Logo file uploaded successfully',
       files: files

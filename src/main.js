@@ -1,5 +1,4 @@
 /** @format */
-require('./alias.config.js') // 모듈 별칭 설정
 const { app, BrowerWindow } = require('electron')
 const userDataPath = app.getPath('userData') // 사용자 데이터 경로
 const { initDb } = require('./db')

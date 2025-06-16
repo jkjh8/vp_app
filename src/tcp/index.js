@@ -1,7 +1,7 @@
 const net = require('net')
-const { pStatus } = require('@/_status')
-const logger = require('@logger')
-const { handleMessage } = require('@/api/terminal')
+const { pStatus } = require('../_status')
+const logger = require('../logger')
+const { handleMessage } = require('../api/terminal')
 
 // 연결된 소켓 목록
 const tcpClients = []

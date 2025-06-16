@@ -1,7 +1,7 @@
 const dgram = require('dgram')
-const { pStatus } = require('@/_status')
-const logger = require('@logger')
-const { handleMessage } = require('@/api/terminal')
+const { pStatus } = require('../_status')
+const logger = require('../logger')
+const { handleMessage } = require('../api/terminal')
 const initUdp = (port) => {
   if (!port) {
     port = pStatus.udpPort
