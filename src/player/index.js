@@ -11,33 +11,37 @@ function startPlayerProcess() {
     logger.warn('Python process is already running.')
     return
   }
-  const pythonPath = path.join(
-    app.getAppPath(),
-    'src',
-    'player',
-    'player',
-    '.venv',
-    'Scripts',
-    'python.exe'
-  )
-  const scriptPath = path.join(
-    app.getAppPath(),
-    'src',
-    'player',
-    'player',
-    'player.py'
-  )
-  const proc = spawn(pythonPath, [scriptPath], {
-    stdio: ['pipe', 'pipe', 'pipe'],
-    shell: false,
-    env: {
-      ...process.env, // 기존 환경변수 유지
-      encoding: 'utf-8',
-      VP_PSTATUS: JSON.stringify(pStatus), // pStatus를 JSON 문자열로 전달
-      APP_PATH: app.getAppPath(), // 앱 경로 전달
-      PYTHONIOENCODING: 'utf-8' // Python 출력 인코딩 설정
+  // const pythonPath = path.join(
+  //   app.getAppPath(),
+  //   'src',
+  //   'player',
+  //   'player',
+  //   '.venv',
+  //   'Scripts',
+  //   'python.exe'
+  // )
+  // const scriptPath = path.join(
+  //   app.getAppPath(),
+  //   'src',
+  //   'player',
+  //   'player',
+  //   'player.py'
+  // )
+  const proc = spawn(
+    path.join(app.getAppPath(), 'src', 'player', 'player.exe'),
+    [],
+    {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      shell: false,
+      env: {
+        ...process.env, // 기존 환경변수 유지
+        encoding: 'utf-8',
+        VP_PSTATUS: JSON.stringify(pStatus), // pStatus를 JSON 문자열로 전달
+        APP_PATH: app.getAppPath(), // 앱 경로 전달
+        PYTHONIOENCODING: 'utf-8' // Python 출력 인코딩 설정
+      }
     }
-  })
+  )
 
   proc.stdout.on('data', parsing)
   proc.stderr.on('data', (data) => logger.error('Python stderr: ' + data))

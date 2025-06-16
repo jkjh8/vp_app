@@ -41,15 +41,7 @@
     "directories": {
       "output": "dist"
     },
-    "files": [
-      "src/**/*",
-      "public/**/*",
-      "package.json",
-      "node_modules/**/*",
-      "!src/player/player/**",
-      "!**/dist/**"
-    ],
-    "asar": false,
+    "asar": true,
     "win": {
       "target": [
         {
@@ -70,6 +62,10 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "VP App"
-    }
+    },
+    "files": [
+      "**/*",
+      "!src/player/player"
+    ]
   }
 }

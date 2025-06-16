@@ -4,7 +4,7 @@ node_modules
 *.db
 src/db/db
 build
-src/py/player/build
+src/player/player/build
 _internal
 dist
 
