@@ -11,8 +11,8 @@ const {
   setRepeat,
   setNext,
   setPrevious
-} = require('../../../api/player')
-const logger = require('../../../logger')
+} = require('@api/player')
+const logger = require('@logger')
 
 const router = express.Router()
 
@@ -69,7 +69,6 @@ router.get('/fullscreen/:value', async (req, res) => {
 
 router.post('/background', async (req, res) => {
   try {
-    console.log('Setting background color:', req.body.color)
     const result = await setBackground(req.body.color)
     res.status(200).json({ message: result })
   } catch (error) {

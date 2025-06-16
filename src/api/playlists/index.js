@@ -43,7 +43,6 @@ const fnAddPlaylists = async (args) => {
 const fnEditPlaylists = async (args) => {
   const { id, ...updateData } = args
   if (!id) return new Error('Playlist ID is required')
-  console.log('Updating playlist with ID:', id, 'and data:', updateData)
   return await dbPlaylists.update({ _id: id }, { $set: updateData })
 }
 
@@ -125,10 +124,13 @@ const editImageRenderTime = async (playlistId, idx, time) => {
 }
 
 const playlistPlay = async (playlistId, trackIndex) => {
-  logger.warn('playlistPlay called with:' + { playlistId, trackIndex })
-
+  logger.warn('playlistPlay called with:' + playlistId + ' ' + trackIndex)
   if (!playlistId) {
-    throw new Error('Playlist ID is required')
+    return 'Playlist ID is required'
+  }
+
+  if ((await dbPlaylists.findOne({ playlistId })) === null) {
+    return 'Playlist not found'
   }
 
   logger.info(await setPlaylist(playlistId))
@@ -140,6 +142,10 @@ const playlistPlay = async (playlistId, trackIndex) => {
   sendPlayerCommand('playlist_play', {
     idx: trackIndex
   })
+  require('../../tcp').broadcastTcpMessage(
+    `playlist,${playlistId},${trackIndex}`
+  )
+  return null
 }
 
 module.exports = {

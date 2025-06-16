@@ -5,7 +5,7 @@ const { dbStatus, dbFiles } = require('../../db')
 const { getLogoPath } = require('../files/folders')
 const { setPlaylistMode } = require('../playlists')
 const { sendPlayerCommand, sendMessageToClient } = require('..')
-const { send } = require('express/lib/response')
+const { broadcastTcpMessage } = require('../../tcp')
 
 const playid = async (id) => {
   logger.info(`Received play request with ID: ${id}`)
@@ -15,6 +15,8 @@ const playid = async (id) => {
   }
   sendPlayerCommand('playid', { file: file })
   setPlaylistMode(false)
+  require('../../tcp').broadcastTcpMessage(`playid,${id},${file.filename}`)
+
   return `Playing file: ${file.path}`
 }
 
@@ -33,15 +35,19 @@ const pause = (idx) => {
 const stop = () => {
   logger.info('Received stop request')
   sendPlayerCommand('stop_all', {})
+  require('../../tcp').broadcastTcpMessage('stop')
   return 'Player stopped'
 }
 
 const updateTime = (time, idx) => {
   sendPlayerCommand('set_time', { time, idx })
+  require('../../tcp').broadcastTcpMessage(`set_time,${time}`)
+  return `Time updated to: ${time} for player ${idx}`
 }
 
 const setFullscreen = async (value) => {
   sendPlayerCommand('set_fullscreen', { value })
+  require('../../tcp').broadcastTcpMessage(`set_fullscreen,${value}`)
   return `Fullscreen mode set to: ${value}`
 }
 
@@ -146,12 +152,26 @@ const setRepeat = async (mode = null) => {
 const setNext = async () => {
   logger.info('Setting next track in playlist')
   sendPlayerCommand('next', {})
+  require('../../tcp').broadcastTcpMessage(
+    `next,${pStatus.playlist.playlistId},${pStatus.playlistTrackIndex + 1}`
+  )
   return 'Next track set'
 }
 
 const setPrevious = async () => {
   logger.info('Setting previous track in playlist')
   sendPlayerCommand('previous', {})
+  // 재생시간이 5초 미만이면 playlistTrackIndex를 -1
+  if (pStatus.player[pStatus.activePlayerId].time < 5000) {
+    require('../../tcp').broadcastTcpMessage(
+      `previous,${pStatus.playlist.playlistId},${pStatus.playlistTrackIndex - 1}`
+    )
+  } else {
+    require('../../tcp').broadcastTcpMessage(
+      `previous,${pStatus.playlist.playlistId},${pStatus.playlistTrackIndex}`
+    )
+  }
+
   return 'Previous track set'
 }
 

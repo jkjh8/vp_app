@@ -1,6 +1,6 @@
 {
   "name": "vp_app",
-  "version": "1.0.0",
+  "version": "0.7.0",
   "description": "VP App for media playback and management",
   "author": "",
   "license": "ISC",
@@ -46,13 +46,12 @@
       "src/**/*",
       "public/**/*",
       "package.json",
-      "!**/*.map",
-      "!**/node_modules/**/test/**",
-      "!**/node_modules/**/docs/**",
+      "node_modules/**/*",
       "!**/__pycache__/**",
       "!**/*.log",
       "!**/dist/**",
-      "!**/debug/**"
+      "!**/debug/**",
+      "!src/player/player/**"
     ],
     "asar": true,
     "win": {

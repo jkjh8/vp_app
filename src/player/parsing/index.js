@@ -2,12 +2,10 @@ let { pStatus } = require('../../_status.js')
 const logger = require('../../logger')
 const { dbStatus, dbFiles } = require('../../db')
 const { sendMessageToClient, sendPlayerCommand } = require('../../api')
-const { send } = require('express/lib/response.js')
-
+const { broadcastTcpMessage } = require('../../tcp')
 let lastEndReachedEvent = null
 
 function handleEndReached(data) {
-  console.log('handleEndReached', data)
   const eventKey = `${data.playlist_track_index}-${data.active_player_id}`
   if (lastEndReachedEvent === eventKey) {
     logger.warn(`Duplicate end_reached event ignored: ${eventKey}`)
@@ -35,11 +33,15 @@ function handleEndReached(data) {
           )
           if (lastEndReachedEvent !== `next-${pStatus.playlistTrackIndex}`) {
             sendPlayerCommand('next', {})
+            broadcastTcpMessage(
+              `next,${pStatus.playlist.playlistId},${pStatus.playlistTrackIndex}`
+            )
             lastEndReachedEvent = `next-${pStatus.playlistTrackIndex}`
           }
         } else {
           sendPlayerCommand('stop_all', {})
           sendPlayerCommand('set_track_index', { index: 0 })
+          broadcastTcpMessage('stop')
         }
       } else {
         logger.info('End of track reached, stopping playback.')
@@ -51,21 +53,29 @@ function handleEndReached(data) {
         logger.info('End of playlist reached, moving to next track.')
         if (lastEndReachedEvent !== `all-${pStatus.playlistTrackIndex}`) {
           sendPlayerCommand('next', {})
+          broadcastTcpMessage(
+            `next,${pStatus.playlist.playlistId},${pStatus.playlistTrackIndex}`
+          )
           lastEndReachedEvent = `all-${pStatus.playlistTrackIndex}`
         }
       } else {
         sendPlayerCommand('stop', { idx: playerId })
         sendPlayerCommand('play', { idx: playerId })
+        broadcastTcpMessage(`repeat`)
       }
       break
     case 'single':
       logger.info('End of single track reached, stopping playback.')
       sendPlayerCommand('stop', { idx: playerId })
+      broadcastTcpMessage('stop')
       break
     case 'repeat_one':
       logger.info('Repeat one mode, restarting current track.')
       sendPlayerCommand('stop', { idx: playerId })
       sendPlayerCommand('play', { idx: playerId })
+      broadcastTcpMessage(
+        `next,${pStatus.playlist.playlistId},${pStatus.playlistTrackIndex}`
+      )
       break
   }
 }
