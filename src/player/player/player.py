@@ -86,7 +86,7 @@ class Player(QMainWindow):
         self.stdin_reader.start()
 
         # Set window icon
-        icon_path = os.path.join(app_path, "src/icon.png")
+        icon_path = os.path.join(app_path, "src", "icon.ico")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
             self.print("info", f"Icon set from {icon_path}")

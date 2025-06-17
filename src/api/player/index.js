@@ -7,6 +7,18 @@ const { setPlaylistMode } = require('../playlists')
 const { sendPlayerCommand, sendMessageToClient } = require('..')
 const { broadcastTcpMessage } = require('../../tcp')
 
+const setMedia = async (id) => {
+  logger.info(`Setting media with ID: ${id}`)
+  const file = await dbFiles.findOne({ number: Number(id) })
+  if (!file) {
+    throw new Error('File not found')
+  }
+  sendPlayerCommand('set_media', { file })
+  setPlaylistMode(false)
+  require('../../tcp').broadcastTcpMessage(`set,${id},${file.filename}`)
+  return `Media set to: ${file.path}`
+}
+
 const playid = async (id) => {
   logger.info(`Received play request with ID: ${id}`)
   const file = await dbFiles.findOne({ number: Number(id) })
@@ -177,6 +189,7 @@ const setPrevious = async () => {
 
 module.exports = {
   sendPlayerCommand,
+  setMedia,
   playid,
   play,
   stop,

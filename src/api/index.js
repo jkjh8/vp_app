@@ -38,8 +38,13 @@ const sendStatusAndUpdate = async (stats) => {
   }
 }
 
+const broadcastTcpMessage = (message) => {
+  require('../tcp').broadcastTcpMessage(message)
+}
+
 module.exports = {
   sendPlayerCommand,
   sendMessageToClient,
-  sendStatusAndUpdate
+  sendStatusAndUpdate,
+  broadcastTcpMessage
 }

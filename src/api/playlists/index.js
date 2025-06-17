@@ -1,6 +1,10 @@
 const { pStatus } = require('../../_status')
 const { dbPlaylists, dbFiles } = require('../../db')
-const { sendPlayerCommand, sendMessageToClient } = require('../../api')
+const {
+  sendPlayerCommand,
+  sendMessageToClient,
+  broadcastTcpMessage
+} = require('../../api')
 const logger = require('../../logger')
 
 const getTracksWithFileInfo = async (tracks) => {
@@ -20,6 +24,17 @@ const getTracksWithFileInfo = async (tracks) => {
       }
     })
   )
+}
+
+const getPlaylist = async (playlistId) => {
+  if (!playlistId) {
+    throw new Error('Playlist ID is required')
+  }
+  const playlist = await dbPlaylists.findOne({ playlistId })
+  if (!playlist) {
+    throw new Error('Playlist not found')
+  }
+  return await getTracksWithFileInfo(playlist.tracks)
 }
 
 const fnGetPlaylists = async () => {
@@ -77,6 +92,10 @@ const setPlaylist = async (playlistId) => {
       currentPlaylistId: pStatus.currentPlaylistId,
       tracks: pStatus.tracks
     })
+
+    broadcastTcpMessage(
+      `set_playlist,${playlistId},${playlist.name},${playlist.tracks.length}`
+    )
     resolve(`Playlist set to: ${playlist.name}`)
   })
 }
@@ -150,6 +169,7 @@ const playlistPlay = async (playlistId, trackIndex) => {
 
 module.exports = {
   fnGetPlaylists,
+  getPlaylist,
   fnAddPlaylists,
   fnEditPlaylists,
   fnAddTracksToPlaylist,

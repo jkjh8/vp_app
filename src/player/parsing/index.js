@@ -1,8 +1,11 @@
 let { pStatus } = require('../../_status.js')
 const logger = require('../../logger')
 const { dbStatus, dbFiles } = require('../../db')
-const { sendMessageToClient, sendPlayerCommand } = require('../../api')
-const { broadcastTcpMessage } = require('../../tcp')
+const {
+  sendMessageToClient,
+  sendPlayerCommand,
+  broadcastTcpMessage
+} = require('../../api')
 let lastEndReachedEvent = null
 
 function handleEndReached(data) {

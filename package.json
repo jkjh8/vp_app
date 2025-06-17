@@ -1,6 +1,6 @@
 {
   "name": "vp_app",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "VP App for media playback and management",
   "author": "",
   "license": "ISC",
@@ -41,7 +41,7 @@
     "directories": {
       "output": "dist"
     },
-    "asar": true,
+    "asar": false,
     "win": {
       "target": [
         {
@@ -62,10 +62,6 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "VP App"
-    },
-    "files": [
-      "**/*",
-      "!src/player/player"
-    ]
+    }
   }
 }

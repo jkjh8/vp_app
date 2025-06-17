@@ -1,7 +1,5 @@
 # player.spec - PyInstaller 빌드 스크립트 (player.py 기반, PySide6 전체 및 VLC DLL 포함)
 
-block_cipher = None
-
 from PyInstaller.utils.hooks import collect_submodules
 import glob
 import os
@@ -40,20 +38,16 @@ a = Analysis([
         (r'./icon.ico', '.'),
         (r'./icon.png', '.'),
     ] + pyside6_plugins + vlc_plugins,
-    hiddenimports=pyside6_modules + collect_submodules('vlc'),
-    hookspath=[],
-    runtime_hooks=[],
-    excludes=[],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
 )
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+pyz = PYZ(a.pure, a.zipped_data, cipher=None)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
     [],
-    exclude_binaries=True,
     name='player',
     debug=False,
     bootloader_ignore_signals=False,
@@ -61,14 +55,5 @@ exe = EXE(
     upx=True,
     console=False,
     icon='icon.ico',
-)
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='player'
+    onefile=True,
 )
