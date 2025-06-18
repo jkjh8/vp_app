@@ -216,8 +216,7 @@ class Player(QMainWindow):
     def resizeEvent(self, event):
         """윈도우 리사이즈 시 위젯 크기 조정"""
         super().resizeEvent(event)
-        for player in self.player_widgets:
-            player.setGeometry(0, 0, self.width(), self.height())
+        self.set_all_player_geometry()
         for idx in range(len(self.player_widgets)):
             self.apply_image_layout(idx)
         self.apply_logo_layout()
@@ -241,6 +240,10 @@ class Player(QMainWindow):
     # =========================
     # 공통 위젯 레이아웃/가시성 헬퍼 함수
     # =========================
+    def set_all_player_geometry(self):
+        for player in self.player_widgets:
+            player.setGeometry(0, 0, self.width(), self.height())
+
     def apply_logo_layout(self):
         """로고 위젯의 크기, 위치, 가시성 일괄 적용"""
         if not hasattr(self, 'logo_widget') or not self.logo_widget:
@@ -248,7 +251,6 @@ class Player(QMainWindow):
         logo_x = (self.width() - self.logo_width) // 2
         logo_y = (self.height() - self.logo_height) // 2
         self.logo_widget.setGeometry(logo_x, logo_y, self.logo_width, self.logo_height)
-        self.logo_widget.setVisible(self.logo_show)
 
     def apply_image_layout(self, idx):
         """이미지 위젯의 크기, 정렬 일괄 적용"""
@@ -267,64 +269,43 @@ class Player(QMainWindow):
     def set_logo_center(self):
         self.apply_logo_layout()
 
-    def set_logo_size(self, size):
-        try:
+    def update_logo(self, file_path=None, size=None, visible=None):
+        """
+        로고 파일, 사이즈, 표시 여부를 한 번에 업데이트하는 통합 함수
+        """
+        if file_path is not None:
+            self.logo_file = file_path
+            self.logo_svg = self.logo_file.lower().endswith(".svg")
+        if size is not None:
             self.logo_size = size
-            self.update_logo_size()
-        except Exception as e:
-            self.print("error", f"Error setting logo size: {e}")
+        if visible is not None:
+            self.logo_show = visible
 
-    def update_logo_size(self):
-        if not self.logo_file or not os.path.exists(self.logo_file):
-            self.print("error", "Logo file does not exist or path is empty.")
-            return
-        if self.logo_svg:
-            try:
-                svg_renderer = QSvgRenderer(self.logo_file)
-                if not svg_renderer.isValid():
-                    self.print("error", "Failed to load SVG logo file.")
-                    return
-                original_width = svg_renderer.defaultSize().width()
-                original_height = svg_renderer.defaultSize().height()
-                if self.logo_size > 0:
-                    self.logo_width = self.logo_size
-                    self.logo_height = int(original_height * (self.logo_size / original_width))
-                else:
-                    self.logo_width = original_width
-                    self.logo_height = original_height
-            except Exception as e:
-                self.print("error", f"Error loading SVG logo: {e}")
-        else:
-            pixmap = QPixmap(self.logo_file)
-            if pixmap.isNull():
-                self.print("error", "Failed to load Pixmap logo file.")
-                return
-            original_width = pixmap.width()
-            original_height = pixmap.height()
-            if self.logo_size > 0:
-                self.logo_width = self.logo_size
-                self.logo_height = int(original_height * (self.logo_size / original_width))
-            else:
-                self.logo_width = original_width
-                self.logo_height = original_height
-        self.print("debug", f"Logo size updated: width={self.logo_width}, height={self.logo_height}")
-        self.apply_logo_layout()
-
-    def set_logo_file(self, file_path):
-        if not hasattr(self, 'logo_widget') or self.logo_widget is None:
-            self.logo_widget = QLabel(self)
-            self.print("debug", "Logo widget initialized.")
+        # 기존 위젯 정리
         if hasattr(self, 'logo_widget') and self.logo_widget:
             self.logo_widget.setVisible(False)
             self.logo_widget.deleteLater()
             self.logo_widget = None
-        self.logo_file = file_path
-        self.logo_svg = self.logo_file.lower().endswith(".svg")
-        self.print("debug", f"Logo file set to: {self.logo_file}")
-        self.update_logo_size()
+
+        if not self.logo_show:
+            return
+        # 위젯 생성 및 이미지 적용
         if self.logo_svg:
             try:
                 self.logo_widget = QSvgWidget(self.logo_file, self)
+                svg_renderer = QSvgRenderer(self.logo_file)
+                if svg_renderer.isValid():
+                    original_width = svg_renderer.defaultSize().width()
+                    original_height = svg_renderer.defaultSize().height()
+                    if self.logo_size > 0:
+                        self.logo_width = self.logo_size
+                        self.logo_height = int(original_height * (self.logo_size / original_width))
+                    else:
+                        self.logo_width = original_width
+                        self.logo_height = original_height
+                else:
+                    self.print("error", "Failed to load SVG logo file.")
+                    return
             except Exception as e:
                 self.print("error", f"Failed to initialize SVG logo widget: {e}")
                 return
@@ -333,6 +314,14 @@ class Player(QMainWindow):
                 pixmap = QPixmap(self.logo_file)
                 if not pixmap.isNull():
                     self.logo_widget = QLabel(self)
+                    original_width = pixmap.width()
+                    original_height = pixmap.height()
+                    if self.logo_size > 0:
+                        self.logo_width = self.logo_size
+                        self.logo_height = int(original_height * (self.logo_size / original_width))
+                    else:
+                        self.logo_width = original_width
+                        self.logo_height = original_height
                     self.logo_widget.setPixmap(
                         pixmap.scaled(
                             self.logo_width,
@@ -347,16 +336,19 @@ class Player(QMainWindow):
             except Exception as e:
                 self.print("error", f"Failed to initialize Pixmap logo widget: {e}")
                 return
+        self.logo_widget.setVisible(self.logo_show)
+        self.logo_widget.raise_()
         self.apply_logo_layout()
+        self.print("debug", f"Logo updated: file={self.logo_file}, size={self.logo_size}, visible={self.logo_show}")
 
+    # 기존 개별 함수들은 update_logo로 대체
+    def set_logo_file(self, file_path):
+        self.update_logo(file_path=file_path)
+    def set_logo_size(self, size):
+        self.update_logo(size=size)
     def set_logo_visibility(self, visible):
-        self.logo_show = visible
-        self.apply_logo_layout()
-        self.print("debug", f"Logo visibility set to: {visible}")
-
-    # =========================
-    # 이미지 표시/정지 및 타이머 (중복 제거)
-    # =========================
+        self.update_logo(visible=visible)
+    # ...existing code...
     def display_image(self, file, idx=None):
         idx = self.active_player_id if idx is None else idx
         image_path = file.get("path")
@@ -473,33 +465,25 @@ class Player(QMainWindow):
         to_file = self.current_files[idx] if self.current_files and len(self.current_files) > idx else {}
         mimetype = to_file.get("mimetype", "")
 
-        # 미디어 타입에 따라 로고 표시/숨김
-        if mimetype.startswith("audio/"):
-            self.stop(from_id)
-            to_widget.setVisible(False)
-            from_widget.setVisible(False)
-            for player_widget in self.player_widgets:
-                player_widget.setVisible(False)
-                self.logo_widget.raise_() # Bring the logo widget to the front
-            if self.logo_widget and self.logo_show:
-                self.set_logo_visibility(True)
-            else:
-                # 나머지 경우 모든 위젯 숨김
-                from_widget.setVisible(False)
-            self.print("debug", f"fade_transition: Audio file detected (mimetype: {mimetype}). Logo will be shown.")
-        else:
-            self.set_logo_visibility(False)
-            self.print("debug", f"fade_transition: Non-audio file (mimetype: {mimetype}). Logo will be hidden.")
-            to_widget.setVisible(True)  # Ensure the target widget is visible before fading in
-            to_widget.raise_()  # Bring the target widget to the front
-
-        self.update_active_player_id(idx)  # Update the active player ID
-        
-        from_widget.setVisible(False)
         if hasattr(from_widget, 'original_pixmap'):
             self.stop_image(from_id)  # Stop displaying image if it exists
         if self.players[from_id].is_playing():
             self.players[from_id].stop()
+        # 미디어 타입에 따라 로고 표시/숨김
+        if mimetype.startswith("audio/"):
+            self.stop(from_id)
+            for player_widget in self.player_widgets:
+                player_widget.setVisible(False)
+            self.update_logo()
+            self.print("debug", f"fade_transition: Audio file detected (mimetype: {mimetype}). Logo will be shown.")
+        else:
+            self.print("debug", f"fade_transition: Non-audio file (mimetype: {mimetype}). Logo will be hidden.")
+            from_widget.setVisible(False)
+            to_widget.setVisible(True)  # Ensure the target widget is visible before fading in
+            to_widget.raise_()  # Bring the target widget to the front
+            
+        self.update_active_player_id(idx)  # Update the active player ID
+        
             
     # =========================
     # 오디오 디바이스 관련 함수
@@ -725,16 +709,16 @@ class Player(QMainWindow):
             idx = self.active_player_id
         if self.current_files[idx].get("is_image", True):
             self.stop_image(idx)
-        else :
+        else:
             self.players[idx].stop()
-        self.player_widgets[idx].setVisible(False)  # Hide the player widget
-        self.set_logo_center()
-        
+        self.player_widgets[idx].setVisible(False)
+        self.player_widgets[idx].lower()
+
     def stop_all(self):
         """모든 플레이어 정지"""
-        # 모든 플레이어 중지 및 위젯 숨김
         for idx in range(len(self.player_widgets)):
             self.stop(idx)
+        self.update_logo()
                     
     def update_player_data(self, id, event):
         """플레이어 상태 정보 갱신"""

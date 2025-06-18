@@ -7,14 +7,17 @@ const {
   broadcastTcpMessage
 } = require('../../api')
 let lastEndReachedEvent = null
+let lastEndReachedTime = 0
 
 function handleEndReached(data) {
   const eventKey = `${data.playlist_track_index}-${data.active_player_id}`
-  if (lastEndReachedEvent === eventKey) {
+  const now = Date.now()
+  if (lastEndReachedEvent === eventKey && now - lastEndReachedTime < 1000) {
     logger.warn(`Duplicate end_reached event ignored: ${eventKey}`)
     return
   }
   lastEndReachedEvent = eventKey
+  lastEndReachedTime = now
 
   logger.info(`End reached event received: ${JSON.stringify(data)}`)
   pStatus.playlistTrackIndex = data.playlist_track_index

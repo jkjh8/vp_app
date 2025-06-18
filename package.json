@@ -41,7 +41,20 @@
     "directories": {
       "output": "dist"
     },
-    "asar": false,
+    "extraResources": [
+      {
+        "from": "src/player/player.exe",
+        "to": "player.exe"
+      }
+    ],
+    "files": [
+      "src/**/*",
+      "public/**/*",
+      "package.json",
+      "node_modules/**/*",
+      "!src/player/player/**"
+    ],
+    "asar": true,
     "win": {
       "target": [
         {
