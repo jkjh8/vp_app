@@ -2,6 +2,7 @@
 .thumbs.db
 node_modules
 *.db
+*.exe
 src/db/db
 build
 src/player/player/build
