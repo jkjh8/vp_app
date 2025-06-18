@@ -39,9 +39,6 @@ function handleEndReached(data) {
           )
           if (lastEndReachedEvent !== `next-${pStatus.playlistTrackIndex}`) {
             sendPlayerCommand('next', {})
-            broadcastTcpMessage(
-              `next,${pStatus.playlist.playlistId},${pStatus.playlistTrackIndex}`
-            )
             lastEndReachedEvent = `next-${pStatus.playlistTrackIndex}`
           }
         } else {
@@ -59,9 +56,6 @@ function handleEndReached(data) {
         logger.info('End of playlist reached, moving to next track.')
         if (lastEndReachedEvent !== `all-${pStatus.playlistTrackIndex}`) {
           sendPlayerCommand('next', {})
-          broadcastTcpMessage(
-            `next,${pStatus.playlist.playlistId},${pStatus.playlistTrackIndex}`
-          )
           lastEndReachedEvent = `all-${pStatus.playlistTrackIndex}`
         }
       } else {
@@ -244,6 +238,9 @@ const parsing = async (data) => {
           sendMessageToClient('pStatus', {
             playlistTrackIndex: pStatus.playlistTrackIndex
           })
+          broadcastTcpMessage(
+            `track,${pStatus.playlist.playlistId},${pStatus.playlistTrackIndex}`
+          )
           logger.info(
             `Playlist track index set to ${pStatus.playlistTrackIndex}`
           )

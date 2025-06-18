@@ -164,9 +164,6 @@ const setRepeat = async (mode = null) => {
 const setNext = async () => {
   logger.info('Setting next track in playlist')
   sendPlayerCommand('next', {})
-  require('../../tcp').broadcastTcpMessage(
-    `next,${pStatus.playlist.playlistId},${pStatus.playlistTrackIndex + 1}`
-  )
   return 'Next track set'
 }
 
@@ -174,15 +171,6 @@ const setPrevious = async () => {
   logger.info('Setting previous track in playlist')
   sendPlayerCommand('previous', {})
   // 재생시간이 5초 미만이면 playlistTrackIndex를 -1
-  if (pStatus.player[pStatus.activePlayerId].time < 5000) {
-    require('../../tcp').broadcastTcpMessage(
-      `previous,${pStatus.playlist.playlistId},${pStatus.playlistTrackIndex - 1}`
-    )
-  } else {
-    require('../../tcp').broadcastTcpMessage(
-      `previous,${pStatus.playlist.playlistId},${pStatus.playlistTrackIndex}`
-    )
-  }
 
   return 'Previous track set'
 }
