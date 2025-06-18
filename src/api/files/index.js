@@ -145,7 +145,7 @@ const postProcessFiles = async (files) => {
           // fieldname: decodedFieldname,
           filename: decodedFilename,
           originalname: decodedOriginalname,
-          amx: convertforAMX(decodedOriginalname),
+          amx: convertforAMX(decodedFilename),
           mimetype,
           size,
           path: newFilePath,

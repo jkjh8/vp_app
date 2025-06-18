@@ -19,7 +19,8 @@ const getTracksWithFileInfo = async (tracks) => {
           uuid: file.uuid,
           mimetype: file.mimetype,
           is_image: file.is_image,
-          time: track.time || 0
+          time: track.time || 0,
+          amx: file.amx || null
         }
       }
     })

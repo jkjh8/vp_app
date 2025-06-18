@@ -52,6 +52,20 @@ async function handleMessage(msg) {
           r = rt
         }
         break
+      case 'playlist_get_json':
+        const playlist = await playlists.getPlaylist(Number(params[0]))
+        if (playlist) {
+          r = `playlist_get_json,${JSON.stringify(playlist)}`
+        }
+        break
+      case 'playlist_amx':
+        const playlistAmx = await dbPlaylists.findOne({
+          playlistId: Number(params[0])
+        })
+        if (playlistAmx) {
+          r = `playlist_amx,${playlistAmx.tracks.map((t) => t.amx).join(',')}`
+        }
+        break
       case 'next':
         player.setNext()
         break
