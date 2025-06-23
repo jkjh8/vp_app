@@ -28,8 +28,24 @@ const playid = async (id) => {
   sendPlayerCommand('playid', { file: file })
   setPlaylistMode(false)
   require('../../tcp').broadcastTcpMessage(`playid,${id},${file.filename}`)
-
   return `Playing file: ${file.path}`
+}
+
+const play_file = async (file) => {
+  // dbFiles에서 파일을 찾기. filename에서 file을 정규식으로 검색
+  logger.info(`Received play_file request with file: ${file}`)
+  const foundFile = await dbFiles.findOne({
+    filename: { $regex: file, $options: 'i' }
+  })
+  if (!foundFile) {
+    throw new Error('File not found')
+  }
+  sendPlayerCommand('playid', { file: foundFile })
+  setPlaylistMode(false)
+  require('../../tcp').broadcastTcpMessage(
+    `playid,${foundFile.number},${foundFile.filename}`
+  )
+  return `Playing file: ${foundFile.path}`
 }
 
 const play = (idx) => {
@@ -104,7 +120,7 @@ const setBackground = async (background) => {
     return
   }
   pStatus.background = background
-  await dbStatus.update({ type: 'background' }, { color: background })
+  await dbStatus.update({ type: 'background' }, { value: background })
   sendMessageToClient('pStatus', {
     background: pStatus.background
   })
@@ -179,6 +195,7 @@ module.exports = {
   sendPlayerCommand,
   setMedia,
   playid,
+  play_file,
   play,
   stop,
   pause,

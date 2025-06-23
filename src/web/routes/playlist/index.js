@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
-const { dbPlaylists } = require('../../../db')
+const { pStatus } = require('../../../_status.js')
+const { dbPlaylists, dbStatus } = require('../../../db')
 const logger = require('../../../logger')
 const {
   fnGetPlaylists,
@@ -101,6 +102,39 @@ router.put('/image_time', async (req, res) => {
     res.status(200).json(result)
   } catch (error) {
     logger.error('Error updating image render time:', error)
+    res.status(500).json({ error: 'Internal Server Error, ' + error.message })
+  }
+})
+
+// 시작시 플레이리스트 플레이
+router.put('/start_on_play', async (req, res) => {
+  try {
+    const { value } = req.body
+    if (value === undefined || value === null) {
+      return res.status(400).json({ error: 'Value is required' })
+    }
+    await dbStatus.update({ type: 'startOnPlay' }, { value })
+    pStatus.startOnPlay = value
+    logger.info(`Start on play set to ${value}`)
+    res.status(200).json({ value })
+  } catch (error) {
+    logger.error('Error starting playlist on play:', error)
+    res.status(500).json({ error: 'Internal Server Error, ' + error.message })
+  }
+})
+
+router.put('/start_on_playlist_id', async (req, res) => {
+  try {
+    const { playlistId } = req.body
+    if (!playlistId) {
+      return res.status(400).json({ error: 'Playlist ID is required' })
+    }
+    await dbStatus.update({ type: 'startOnPlay' }, { playlistId })
+    pStatus.startOnPlaylist = playlistId
+    logger.info(`Start on playlist ID set to ${playlistId}`)
+    res.status(200).json({ playlistId })
+  } catch (error) {
+    logger.error('Error setting start on playlist ID:', error)
     res.status(500).json({ error: 'Internal Server Error, ' + error.message })
   }
 })

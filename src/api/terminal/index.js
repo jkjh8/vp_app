@@ -10,6 +10,13 @@ async function handleMessage(msg) {
       case 'playid':
         player.playid(Number(params[0]))
         break
+      case 'play_file':
+        const file = params[0]
+        if (!file) {
+          throw new Error('File parameter is required')
+        }
+        await player.play_file(file)
+        break
       case 'play':
         player.play()
         break

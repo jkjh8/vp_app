@@ -10,6 +10,7 @@ const { getSetupfromDB } = require('./api/status')
 const { initTcp } = require('./tcp') // TCP 서버 초기화
 const { initUdp } = require('./udp') // UDP 서버 초기화
 const { initWeb } = require('./web')
+const { playlistPlay } = require('./api/playlists')
 
 const {
   existsMediaPath,
@@ -35,6 +36,12 @@ app.whenReady().then(async function () {
   await initUdp(pStatus.udpPort) // UDP 서버 시작
   // 웹 서버 시작
   await initWeb(pStatus.webPort)
-
+  // start on playlist play
+  if (pStatus.startOnPlaylist && pStatus.startOnPlaylist) {
+    logger.info('Starting player process due to startOnPlaylist setting')
+    setTimeout(async () => {
+      await playlistPlay(pStatus.startOnPlaylist, 0)
+    }, 1000)
+  }
   startPlayerProcess() // Python 프로세스 시작
 })

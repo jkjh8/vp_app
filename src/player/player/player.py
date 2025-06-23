@@ -143,6 +143,7 @@ class Player(QMainWindow):
         
         self.image_timer_instance = QTimer(self)  # QTimer 객체 생성
         self.image_timer_instance.timeout.connect(lambda: self.on_end_reached(self.active_player_id, None))
+        self.print("window_open", { "value": True })
         
     # =========================
     # 명령 처리 및 유틸 함수

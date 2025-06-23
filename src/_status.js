@@ -1,4 +1,5 @@
 let pStatus = {
+  windowOpen: false,
   activePlayerId: 0,
   playlistMode: false,
   playlistTrackIndex: 0,
@@ -7,11 +8,12 @@ let pStatus = {
   tcpPort: 12345,
   udpPort: 12346,
   webPort: 3000,
-  image_time: 10,
-  playlistfile: '',
+  imageTime: 10,
   playlist: {},
   tracks: [],
   currentPlaylistId: null,
+  startOnPlay: false,
+  startOnPlaylist: '',
   device: {
     audiodevice: '',
     audiodevices: []
@@ -61,7 +63,7 @@ let pStatus = {
     }
   ],
   fullscreen: false,
-  background: 'black'
+  background: '#000000'
 }
 
 const updatePStatus = (newStatus) => {

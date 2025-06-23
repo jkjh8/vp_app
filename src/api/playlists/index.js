@@ -162,6 +162,7 @@ const playlistPlay = async (playlistId, trackIndex) => {
   sendPlayerCommand('playlist_play', {
     idx: trackIndex
   })
+
   require('../../tcp').broadcastTcpMessage(
     `playlist,${playlistId},${trackIndex}`
   )

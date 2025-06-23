@@ -141,6 +141,11 @@ const parsing = async (data) => {
         case 'error':
           logger.error('Received error from Python:' + data)
           break
+        case 'window_open':
+          pStatus.windowOpen = data.value
+          sendMessageToClient('pStatus', { windowOpen: pStatus.windowOpen })
+          logger.info(`Video player Window opend`)
+          break
         case 'active_player_id':
           pStatus.activePlayerId = data.value
           sendMessageToClient('pStatus', {
@@ -164,6 +169,9 @@ const parsing = async (data) => {
         case 'audiodevices':
           pStatus.device.audiodevices = data.devices
           sendMessageToClient('pStatus', { device: pStatus.device })
+          logger.info(
+            `Audio devices updated: ${data.devices.length} devices found`
+          )
           break
         case 'set_image_time':
           pStatus.image_time = data.value || 5

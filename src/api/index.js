@@ -1,9 +1,29 @@
 const logger = require('../logger')
 const { updatePStatus } = require('../_status.js')
+const { pStatus } = require('../_status.js')
+
+const commands = []
+let commandInterval = null
+
+function startCommandInterval() {
+  if (!commandInterval) {
+    commandInterval = setInterval(() => {
+      if (pStatus.windowOpen && commands.length > 0) {
+        const cmd = commands.shift()
+        require('../player').send(cmd)
+      }
+      // 명령이 없으면 인터벌 중단
+      if (commands.length === 0) {
+        clearInterval(commandInterval)
+        commandInterval = null
+      }
+    }, 100)
+  }
+}
 
 const sendPlayerCommand = (command, data) => {
-  // logger.info(`Sending command to player: ${command} ${data}`)
-  require('../player').send({ command, ...data })
+  commands.push({ command, ...data })
+  startCommandInterval()
 }
 
 const sendMessageToClient = (event, data) => {

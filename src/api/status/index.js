@@ -19,6 +19,9 @@ const getSetupfromDB = async () => {
         break
       case 'background':
         pStatus.background = setup.value
+        if (!pStatus.background) {
+          pStatus.background = '#000000' // 기본 배경색 설정
+        }
         break
       case 'playlistMode':
         pStatus.playlistMode = setup.value
@@ -67,6 +70,10 @@ const getSetupfromDB = async () => {
         break
       case 'image_time':
         pStatus.imageTime = setup.time || 5
+        break
+      case 'startOnPlay':
+        pStatus.startOnPlay = setup.value
+        pStatus.startOnPlaylist = setup.playlistId || null
         break
       default:
         logger.warn(`from db Unknown setup type: ${JSON.stringify(setup)}`)
