@@ -1,5 +1,5 @@
 /** @format */
-const { app, BrowerWindow } = require('electron')
+const { app, powerSaveBlocker } = require('electron')
 const userDataPath = app.getPath('userData') // 사용자 데이터 경로
 const { initDb } = require('./db')
 initDb(userDataPath) // 데이터베이스 초기화
@@ -20,8 +20,13 @@ const {
 } = require('./api/files/folders')
 const { fnGetPlaylists } = require('./api/playlists')
 
+let powerSaveId = null
+
 // Electron이 준비되면 윈도우 생성
 app.whenReady().then(async function () {
+  // 전원 절전 모드 방지
+  powerSaveId = powerSaveBlocker.start('prevent-app-suspension')
+  logger.info('Power save blocker started with ID:', powerSaveId)
   // 미디어 및 임시 디렉토리 생성
   existsTmpPath() // 임시 디렉토리 확인 및 생성
   deleteTmpFiles() // 임시 디렉토리 내 모든 파일 삭제
@@ -44,4 +49,11 @@ app.whenReady().then(async function () {
     }, 1000)
   }
   startPlayerProcess() // Python 프로세스 시작
+})
+
+app.on('before-quit', () => {
+  if (powerSaveId) {
+    powerSaveBlocker.stop(powerSaveId) // 전원 절전 모드 방지 해제
+    logger.info('Power save blocker stopped')
+  }
 })
